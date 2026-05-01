@@ -1,0 +1,221 @@
+/* Estilos principais */
+body {
+    background-image: url('../images/fundo_login.png'); /* Caminho da imagem de fundo */
+    background-size: cover; /* Faz com que a imagem cubra toda a tela */
+    background-position: center; /* Centraliza a imagem */
+    background-repeat: no-repeat; /* Evita que a imagem se repita */
+    color: #1da1f2;
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    transition: background-color 0.3s ease;
+}
+
+#img_logo_form {
+    width: 150px;
+    height: 110px;
+    margin-top: 0px;
+    animation: fadeIn 1s ease-out;
+}
+
+#texto_form {
+    font-size: 20px;
+    font-weight: bold;
+    color: #1da1f2;
+    text-align: center;
+    margin-bottom: 20px;
+    margin-top: -47px;
+}
+
+/* Camada de sobreposição com opacidade */
+body::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.1); /* Camada preta com 10% de opacidade */
+    z-index: -1;
+}
+
+/* Estilo do container de login */
+.login-container {
+    width: 100%;
+    max-width: 450px;
+    padding: 40px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    animation: slideUp 0.6s ease-out;
+}
+
+/* Estilo do título */
+h4 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1da1f2;
+    text-align: center;
+    margin-bottom: 20px;
+    animation: fadeIn 1.2s ease-out;
+}
+
+/* Cabeçalho do card */
+.card-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+}
+
+/* Ícone no cabeçalho */
+.card-header img {
+    max-width: 100px;
+    height: auto;
+    margin-bottom: 15px;
+}
+
+/* Estilo dos campos de formulário */
+.form-control {
+    background-color: #f5f8fa;
+    border: 1px solid #ccd6dd;
+    color: #1da1f2;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 20px;
+    width: 100%;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #1da1f2;
+    box-shadow: 0 0 5px rgba(29, 161, 242, 0.6);
+}
+
+/* Estilo do botão */
+.btn-login {
+    background-color: #1da1f2;
+    border: none;
+    padding: 16px;
+    font-size: 16px;
+    width: 100%;
+    border-radius: 8px;
+    color: white;
+    text-transform: uppercase;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn-login:hover {
+    background-color: #1991d0;
+    transform: translateY(-2px);
+}
+
+.btn-login:active {
+    transform: translateY(1px);
+}
+
+/* Estilo para links */
+.forgot-password {
+    color: #1da1f2;
+    text-decoration: none;
+    font-weight: 600;
+    text-align: center;
+    display: block;
+    margin-top: 15px;
+    transition: color 0.3s ease;
+}
+
+.forgot-password:hover {
+    color: #1991d0;
+}
+
+/* Estilos para o parágrafo */
+p {
+    font-size: 14px; /* Tamanho padrão da fonte */
+    color: #1da1f2; /* Cor do texto */
+    font-weight: bold;
+    text-align: center;
+    margin-top: -30px;
+    padding: 10px;
+    transition: font-size 0.3s ease; /* Transição suave para o tamanho da fonte */
+}
+
+/* Para tablets e celulares maiores */
+@media (max-width: 768px) {
+    .login-container {
+        padding: 30px;
+        max-width: 100%;
+    }
+
+    h4 {
+        font-size: 26px;
+    }
+
+    .btn-login {
+        padding: 14px;
+    }
+
+    p {
+        font-size: 22px; /* Tamanho da fonte menor em telas médias */
+    }
+}
+
+/* Para celulares pequenos */
+@media (max-width: 480px) {
+    .login-container {
+        padding: 20px;
+        max-width: 95%;
+    }
+
+    h4 {
+        font-size: 22px;
+    }
+
+    .form-control {
+        padding: 12px;
+    }
+
+    .btn-login {
+        font-size: 14px;
+        padding: 12px;
+    }
+
+    p {
+        font-size: 8px; /* Tamanho da fonte ainda menor em telas pequenas */
+        margin-top: -26px;
+        color: #1da1f2;
+    }
+
+    /* Centralização para dispositivos móveis */
+    body {
+        display: flex; /* Usando flexbox novamente */
+        justify-content: center; /* Centralizando horizontalmente */
+        align-items: center; /* Centralizando verticalmente */
+        padding: 0;
+        margin: 0;
+        height: 100vh; /* Garantindo que ocupe toda a altura */
+    }
+}
+
+/* Animações */
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    0% {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

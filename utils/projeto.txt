@@ -1,0 +1,84 @@
+Etapa 1: Configuração inicial
+Banco de Dados (Configuração da Conexão)
+
+Definir a estrutura do banco (por exemplo, tabelas para alunos, professores, classes e presença).
+No arquivo config/conecao.php, configure a conexão PDO com o banco de dados.
+Funções auxiliares
+
+Adicionar funções úteis no arquivo config/funcoes.php (exemplo: para validar login, formatar dados, etc.).
+Etapa 2: Autenticação de usuário
+Login e Logout
+
+Criar o formulário de login em views/auth/login.php, com campos para usuário e senha.
+Implementar a autenticação no arquivo auth/validar_login.php.
+Criar o logout em auth/logout.php.
+Controle de Acesso
+
+Criar funções para verificar se o usuário está autenticado e redirecionar para o login quando necessário.
+Implementar redirecionamento para a dashboard ou página inicial após login bem-sucedido.
+Etapa 3: CRUDs com AJAX e PHP
+Alunos
+
+Implementar as páginas views/alunos/index.php, create.php, edit.php.
+Criar a lógica no controlador controllers/alunos.php para gerenciar os dados de alunos.
+Utilizar AJAX nos arquivos ajax/alunos.ajax.php para manipulação assíncrona.
+Classes
+
+Criar as páginas views/classes/index.php, create.php, edit.php.
+Adicionar a lógica necessária no controlador controllers/classes.php.
+Utilizar AJAX em ajax/classes.ajax.php.
+Professores
+
+Criar as páginas views/professores/index.php, create.php, edit.php.
+Desenvolver a lógica no controlador controllers/professores.php.
+Adicionar AJAX em ajax/professores.ajax.php.
+Etapa 4: Gerenciamento de Chamada
+Presenças
+Criar a tela de chamadas em views/chamada/index.php.
+Adicionar a lógica no controlador controllers/chamada.php para registrar as presenças.
+Etapa 5: Dashboard
+Dashboard
+Criar o painel de controle em views/dashboard/index.php, com dados resumidos de alunos, professores e classes.
+Etapa 6: Finalização e Ajustes
+Responsividade e Estilo
+
+Garantir que o projeto seja responsivo, utilizando o Bootstrap e personalizando com CSS, conforme necessário.
+Testes e Validação
+
+Testar todas as funcionalidades, corrigir bugs, validar inputs, e garantir que o sistema de login e os CRUDs funcionem como esperado.
+escola/
+-ajax/
+--alunos.ajax.php
+--classes.ajax.php
+--professores.ajax.php
+-auth/
+--login.php
+--logout.php
+--validar_login.php
+-config/
+--conecao.php (em PDO)
+--funcoes.php
+controllers/
+--alunos.php
+--classes.php
+--professores.php
+views/
+-alunos/
+--index.php
+--create.php
+--edit.php
+-classes/
+--index.php
+--create.php
+--edit.php
+-professores/
+--index.php
+--create.php
+--edit.php
+/chamada
+--index.php
+-dashboard/
+--index.php
+-index.php (Raiz do projeto para redirecionamento)   - Utiliza bootstrap,font-awoseme,ajax,css,javascript, para tela de celular e desktop 
+
+

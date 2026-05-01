@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="tests/bootstrap.php"
+         colors="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="Chamada Unit Tests">
+            <directory>tests/unit</directory>
+        </testsuite>
+    </testsuites>
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">escola/models</directory>
+            <directory suffix=".php">escola/controllers</directory>
+        </whitelist>
+    </filter>
+    <php>
+        <const name="PHPUNIT_RUNNING" value="true"/>
+        <server name="APP_ENV" value="testing"/>
+    </php>
+</phpunit>

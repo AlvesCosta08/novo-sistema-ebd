@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="tests/bootstrap.php"
+         colors="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="Chamada Unit Tests">
+            <file>tests/unit/ChamadaModelTest.php</file>
+            <file>tests/unit/ChamadaControllerTest.php</file>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <file>escola/models/chamada.php</file>
+            <file>escola/controllers/chamada.php</file>
+        </include>
+    </source>
+    <php>
+        <const name="PHPUNIT_RUNNING" value="true"/>
+        <server name="APP_ENV" value="testing"/>
+    </php>
+</phpunit>

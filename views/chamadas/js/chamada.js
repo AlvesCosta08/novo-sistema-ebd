@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="fas fa-users-slash fa-2x mb-2 d-block"></i>
                                     Nenhum aluno matriculado neste período.
                                 </td>
-                            </tr>
+                            <tr>
                         `;
                     }
                     if (containerAlunos) {
@@ -442,6 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = dataChamada?.value;
         const alunos = coletarDadosAlunos();
 
+        // Validações iniciais
         if (!congregacaoId || !classeId) {
             exibirAlerta('Selecione congregação e classe.', 'warning');
             return;
@@ -450,8 +451,14 @@ document.addEventListener('DOMContentLoaded', function() {
             exibirAlerta('Informe a data da aula.', 'warning');
             return;
         }
-        if (alunos.length === 0) {
-            exibirAlerta('Nenhum aluno carregado. Carregue os alunos primeiro.', 'warning');
+        
+        // Verifica se há alunos na tabela (não apenas se foram coletados)
+        const tabelaBody = document.getElementById('tabelaAlunos');
+        const temLinhas = tabelaBody && tabelaBody.querySelectorAll('tr').length > 0;
+        const temMensagemVazia = tabelaBody && tabelaBody.querySelector('td[colspan="3"]');
+        
+        if (!temLinhas || temMensagemVazia || alunos.length === 0) {
+            exibirAlerta('Nenhum aluno carregado. Selecione uma classe e clique em "Carregar Alunos".', 'warning');
             return;
         }
 
@@ -502,12 +509,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (bibliasInput) bibliasInput.value = '0';
                 if (revistasInput) revistasInput.value = '0';
                 
-                // Recarrega alunos para nova chamada
+                // SÓ AQUI pergunta se quer registrar outra chamada (após sucesso)
                 setTimeout(() => {
-                    if (confirm('Deseja registrar outra chamada para esta mesma turma?')) {
+                    const registrarOutra = confirm('✅ Chamada salva com sucesso!\n\nDeseja registrar outra chamada para esta mesma turma?');
+                    if (registrarOutra) {
+                        // Mantém os alunos e limpa apenas os radios para nova chamada
                         document.querySelectorAll('#tabelaAlunos input[type="radio"][value="presente"]').forEach(radio => {
                             radio.checked = true;
                         });
+                        // Atualiza a data para hoje
                         if (dataChamada) {
                             dataChamada.value = new Date().toISOString().split('T')[0];
                         }

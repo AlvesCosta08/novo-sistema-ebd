@@ -3,5 +3,8 @@
         "phpunit/phpunit": "^9.6",
         "mockery/mockery": "^1.6",
         "phpmd/phpmd": "^2.15"
+    },
+    "require": {
+        "vlucas/phpdotenv": "^5.6"
     }
 }

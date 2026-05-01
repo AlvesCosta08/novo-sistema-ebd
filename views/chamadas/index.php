@@ -1,6 +1,17 @@
 <?php
-// Inclui a validação de sessão (garante que o usuário esteja logado)
+// Garantir que a sessão está ativa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Verificar se usuário está logado
 require_once __DIR__ . '/../../auth/valida_sessao.php';
+
+// Configurar título da página
+$pageTitle = 'Registrar Chamada';
+
+// Incluir header
+require_once __DIR__ . '/../../includes/header.php';
 
 // Recupera dados do usuário logado
 $usuario_id       = $_SESSION['usuario_id'] ?? null;
@@ -8,12 +19,12 @@ $nome_usuario     = $_SESSION['nome'] ?? $_SESSION['usuario_nome'] ?? 'Usuário'
 $perfil           = $_SESSION['perfil'] ?? $_SESSION['usuario_perfil'] ?? 'professor';
 $congregacao_id   = $_SESSION['congregacao_id'] ?? null;
 
-// Se não houver congregação associada (casos extremos), força um fallback
+// Verificar se a congregação está definida para não-admin
 if (empty($congregacao_id) && $perfil !== 'admin') {
     die('Acesso não autorizado: congregação não definida para este usuário.');
 }
 
-// Função para obter o trimestre atual baseado na data
+// Função para obter o trimestre atual
 function getTrimestreAtual() {
     $mes = date('n');
     if ($mes >= 1 && $mes <= 3) return 1;
@@ -25,335 +36,6 @@ function getTrimestreAtual() {
 $anoAtual = date('Y');
 $trimestreAtual = getTrimestreAtual();
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <meta name="theme-color" content="#0d6efd">
-    <title>Registro de Chamada - Escola Bíblica</title>
-    <!-- Bootstrap 5 CSS + Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <!-- AOS Animation -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <style>
-        /* ===== VARIÁVEIS ===== */
-        :root {
-            --primary: #0d6efd;
-            --primary-dark: #0b5ed7;
-            --success: #198754;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --info: #0dcaf0;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --gray: #6c757d;
-            --border-radius: 12px;
-            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
-            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        /* Container principal */
-        .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        /* Cards modernos */
-        .modern-card {
-            background: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .modern-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.2);
-        }
-
-        .card-header-modern {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            padding: 1rem 1.5rem;
-            border: none;
-        }
-
-        /* Botões modernos */
-        .btn-modern {
-            border-radius: 50px;
-            padding: 10px 24px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border: none;
-        }
-
-        .btn-modern-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-        }
-
-        .btn-modern-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
-            color: white;
-        }
-
-        .btn-modern-success {
-            background: linear-gradient(135deg, var(--success), #146c43);
-            color: white;
-        }
-
-        .btn-modern-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(25, 135, 84, 0.3);
-            color: white;
-        }
-
-        /* Tabela responsiva */
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: var(--border-radius);
-            margin-top: 1rem;
-        }
-
-        .custom-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            min-width: 600px;
-        }
-
-        .custom-table thead th {
-            background: var(--light);
-            padding: 12px 16px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 2px solid #dee2e6;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        .custom-table tbody tr {
-            transition: background-color 0.2s ease;
-        }
-
-        .custom-table tbody tr:hover {
-            background-color: rgba(13, 110, 253, 0.05);
-        }
-
-        .custom-table td {
-            padding: 12px 16px;
-            vertical-align: middle;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        /* Radio buttons customizados */
-        .radio-group {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-        }
-
-        .radio-option {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            padding: 6px 12px;
-            border-radius: 50px;
-            transition: all 0.2s ease;
-        }
-
-        .radio-option input[type="radio"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: var(--primary);
-        }
-
-        .radio-option:hover {
-            background-color: rgba(13, 110, 253, 0.1);
-        }
-
-        /* Status badges */
-        .badge-presente {
-            background: linear-gradient(135deg, var(--success), #146c43);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 50px;
-            font-size: 0.75rem;
-        }
-
-        .badge-ausente {
-            background: linear-gradient(135deg, var(--danger), #b02a37);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 50px;
-            font-size: 0.75rem;
-        }
-
-        .badge-justificado {
-            background: linear-gradient(135deg, var(--warning), #d39e00);
-            color: #000;
-            padding: 4px 12px;
-            border-radius: 50px;
-            font-size: 0.75rem;
-        }
-
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            backdrop-filter: blur(4px);
-        }
-
-        .spinner-custom {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Toast notifications */
-        .toast-custom {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            min-width: 280px;
-            animation: slideInRight 0.3s ease;
-        }
-
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        /* Responsividade */
-        @media (max-width: 768px) {
-            .main-container {
-                padding: 10px;
-            }
-            
-            .card-header-modern {
-                padding: 0.75rem 1rem;
-            }
-            
-            .btn-modern {
-                padding: 8px 16px;
-                font-size: 0.875rem;
-            }
-            
-            .custom-table td,
-            .custom-table th {
-                padding: 8px 12px;
-                font-size: 0.875rem;
-            }
-            
-            .radio-group {
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-            
-            .radio-option {
-                padding: 4px 8px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .custom-table td,
-            .custom-table th {
-                padding: 6px 8px;
-                font-size: 0.75rem;
-            }
-            
-            .radio-option span {
-                font-size: 0.7rem;
-            }
-            
-            h2 {
-                font-size: 1.25rem;
-            }
-        }
-
-        /* Utility classes */
-        .text-gradient {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .cursor-pointer {
-            cursor: pointer;
-        }
-
-        /* Floating Action Button para mobile */
-        .fab-mobile {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--success), #146c43);
-            color: white;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            box-shadow: var(--shadow-lg);
-            z-index: 1000;
-            border: none;
-        }
-
-        @media (max-width: 768px) {
-            .fab-mobile {
-                display: flex;
-            }
-        }
-    </style>
-</head>
-<body>
 
 <div class="main-container">
     <!-- Cabeçalho Moderno -->

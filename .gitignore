@@ -1,0 +1,39 @@
+# Arquivos de configuração com credenciais (NUNCA versionar)
+.env
+.env.*
+!.env.example
+!.env.development.example
+
+# Dependências
+vendor/
+composer.lock
+
+# Logs
+*.log
+logs/
+
+# Cache
+cache/
+tmp/
+.phpunit.cache/
+
+# Cobertura de testes
+tests/coverage/
+tests/coverage-html/
+
+# Backups
+*.sql
+*.sql.gz
+*.bak
+*.old
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,133 +1,32 @@
 <?php
+// Garantir que a sessão está ativa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Verificar se usuário está logado
 require_once __DIR__ . '/../../auth/valida_sessao.php';
+
+// Configurar título da página
+$pageTitle = 'Editar Chamada';
+
+// Incluir header
+require_once __DIR__ . '/../../includes/header.php';
+
 $usuario_id      = $_SESSION['usuario_id'] ?? null;
 $nome_usuario    = $_SESSION['nome'] ?? $_SESSION['usuario_nome'] ?? 'Usuário';
 $perfil          = $_SESSION['perfil'] ?? $_SESSION['usuario_perfil'] ?? 'professor';
 $congregacao_id  = $_SESSION['congregacao_id'] ?? null;
 
+// Obtém o ID da chamada via GET
 $chamadaId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if (!$chamadaId) {
     die("Chamada não especificada.");
 }
 
-function getTrimestreAtual() {
-    $mes = date('n');
-    if ($mes >= 1 && $mes <= 3) return 1;
-    if ($mes >= 4 && $mes <= 6) return 2;
-    if ($mes >= 7 && $mes <= 9) return 3;
-    return 4;
-}
-
 $anoAtual = date('Y');
 $trimestreAtual = getTrimestreAtual();
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Editar Chamada - Escola Bíblica</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <style>
-        .card-header-custom {
-            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-            color: white;
-            border-bottom: none;
-        }
-        .table-wrapper {
-            max-height: 450px;
-            overflow-y: auto;
-            border-radius: 8px;
-        }
-        .custom-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            min-width: 600px;
-        }
-        .custom-table thead th {
-            background: #f8f9fa;
-            padding: 12px 16px;
-            font-weight: 600;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        .custom-table tbody tr:hover {
-            background-color: rgba(13, 110, 253, 0.05);
-        }
-        .custom-table td {
-            padding: 12px 16px;
-            vertical-align: middle;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .radio-group {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .radio-option {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            padding: 5px 12px;
-            border-radius: 50px;
-            transition: all 0.2s ease;
-        }
-        .radio-option:hover {
-            background-color: rgba(13, 110, 253, 0.1);
-        }
-        .badge-presente { background: linear-gradient(135deg, #198754, #146c43); color: white; padding: 5px 12px; border-radius: 50px; font-size: 0.75rem; }
-        .badge-ausente { background: linear-gradient(135deg, #dc3545, #b02a37); color: white; padding: 5px 12px; border-radius: 50px; font-size: 0.75rem; }
-        .badge-justificado { background: linear-gradient(135deg, #ffc107, #d39e00); color: #000; padding: 5px 12px; border-radius: 50px; font-size: 0.75rem; }
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .spinner-custom {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .btn-modern {
-            border-radius: 50px;
-            padding: 10px 24px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            border: none;
-        }
-        .btn-modern-primary {
-            background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-            color: white;
-        }
-        .btn-modern-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
-        }
-        @media (max-width: 768px) {
-            .custom-table td, .custom-table th { padding: 8px 12px; font-size: 0.875rem; }
-            .radio-group { gap: 8px; }
-        }
-    </style>
-</head>
-<body class="bg-light">
 
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">

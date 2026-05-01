@@ -24,6 +24,21 @@
         ├── ChamadaControllerTest.php
         └── ConnectionTest.php
 
+
+/escola/
+├── views/matricula/
+│   ├── index.php          # Gerenciar matrículas
+│   ├── listar.php         # Listar matrículas
+│   ├── editar.php         # Editar matrícula
+│   └── js/
+│       ├── matricula.js
+│       ├── listar.js
+│       └── editar.js
+├── controllers/
+│   └── matricula.php      # (já existe)
+└── models/
+│   └── matricula.php      # (já existe)        
+
      
 📊 Funcionalidades Implementadas
 

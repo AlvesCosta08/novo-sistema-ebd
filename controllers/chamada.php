@@ -57,61 +57,7 @@ if (empty($acao)) {
     sendResponse('error', 'Ação não especificada.');
 }
 
-/**
- * Função para padronizar trimestre
- * Converte formatos como '2' para '2026-T2'
- */
-function padronizarTrimestre($trimestre, $ano = null) {
-    if (empty($trimestre)) return null;
-    
-    // Remove espaços em branco
-    $trimestre = trim($trimestre);
-    
-    // Se já estiver no formato ANO-T (ex: 2026-T2), retorna como está
-    if (preg_match('/^\d{4}-T[1-4]$/i', $trimestre)) {
-        // Garante que o T seja maiúsculo
-        return strtoupper($trimestre);
-    }
-    
-    // Se for apenas o número do trimestre (1-4)
-    if (preg_match('/^[1-4]$/', $trimestre)) {
-        $anoUsar = $ano ?: date('Y');
-        return $anoUsar . '-T' . $trimestre;
-    }
-    
-    // Se for formato '2026T2' (sem hífen)
-    if (preg_match('/^(\d{4})[Tt]([1-4])$/', $trimestre, $matches)) {
-        return $matches[1] . '-T' . $matches[2];
-    }
-    
-    // Se for formato 'T2' ou 'T02'
-    if (preg_match('/^T?0?([1-4])$/i', $trimestre, $matches)) {
-        $anoUsar = $ano ?: date('Y');
-        return $anoUsar . '-T' . $matches[1];
-    }
-    
-    return $trimestre;
-}
-
-/**
- * Função para extrair o número do trimestre (1-4)
- */
-function extrairNumeroTrimestre($trimestre) {
-    if (empty($trimestre)) return null;
-    
-    if (preg_match('/-T([1-4])$/i', $trimestre, $matches)) {
-        return $matches[1];
-    }
-    if (preg_match('/^[1-4]$/', $trimestre)) {
-        return $trimestre;
-    }
-    if (preg_match('/^(\d{4})[Tt]([1-4])$/', $trimestre, $matches)) {
-        return $matches[2];
-    }
-    return null;
-}
-
-// Instanciação da Classe
+// Instanciação da Classe - As funções de trimestre agora estão no model
 try {
     $chamadaModel = new Chamada($pdo);
 } catch (Exception $e) {
@@ -150,7 +96,8 @@ try {
                 sendResponse('error', 'Parâmetros incompletos (Classe, Congregação, Trimestre).');
             }
 
-            $trimestrePadronizado = padronizarTrimestre($trimestre, $ano);
+            // Usa o método padronizarTrimestre do model
+            $trimestrePadronizado = $chamadaModel->padronizarTrimestre($trimestre, $ano);
             $data = $chamadaModel->getAlunosByClasse($classe_id, $congregacao_id, $trimestrePadronizado);
             sendResponse('success', $data);
             break;
@@ -181,7 +128,8 @@ try {
                 sendResponse('error', 'Lista de alunos inválida ou vazia.');
             }
             
-            $trimestrePadronizado = padronizarTrimestre($input['trimestre']);
+            // Usa o método padronizarTrimestre do model
+            $trimestrePadronizado = $chamadaModel->padronizarTrimestre($input['trimestre']);
             
             $resultado = $chamadaModel->registrarChamada(
                 $input['data'],
@@ -215,9 +163,9 @@ try {
                 $filtros['classe_id'] = (int)$input['classe_id'];
             }
             
-            // Processamento do trimestre para busca flexível
+            // Processamento do trimestre para busca flexível - usando método do model
             if (!empty($input['trimestre'])) {
-                $numeroTrimestre = extrairNumeroTrimestre($input['trimestre']);
+                $numeroTrimestre = $chamadaModel->extrairNumeroTrimestre($input['trimestre']);
                 if ($numeroTrimestre) {
                     $filtros['trimestre_numero'] = $numeroTrimestre;
                     if (!empty($input['ano'])) {
@@ -226,7 +174,7 @@ try {
                         $filtros['ano'] = $matches[1];
                     }
                 } else {
-                    $filtros['trimestre'] = padronizarTrimestre($input['trimestre']);
+                    $filtros['trimestre'] = $chamadaModel->padronizarTrimestre($input['trimestre']);
                 }
             } elseif (!empty($input['trimestre_numero'])) {
                 // Suporte direto para filtro por número de trimestre
@@ -288,7 +236,8 @@ try {
                 sendResponse('error', 'Formato de data inválido. Use YYYY-MM-DD');
             }
             
-            $trimestrePadronizado = padronizarTrimestre($input['trimestre']);
+            // Usa o método padronizarTrimestre do model
+            $trimestrePadronizado = $chamadaModel->padronizarTrimestre($input['trimestre']);
             
             $resultado = $chamadaModel->atualizarChamada(
                 $chamadaId,
@@ -343,6 +292,7 @@ try {
         case 'verificarChamadaExistente':
             $data = $input['data'] ?? '';
             $classeId = filter_var($input['classe_id'] ?? 0, FILTER_VALIDATE_INT);
+            $congregacaoId = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
             
             if (!$data || !$classeId) {
                 sendResponse('error', 'Data e classe são obrigatórios.');
@@ -350,14 +300,27 @@ try {
             
             try {
                 // Busca chamada existente para esta data e classe
-                $stmt = $pdo->prepare("
-                    SELECT c.*, cl.nome as nome_classe 
+                $sql = "
+                    SELECT c.*, cl.nome as nome_classe, cong.nome as nome_congregacao
                     FROM chamadas c
                     INNER JOIN classes cl ON cl.id = c.classe_id
+                    INNER JOIN congregacoes cong ON cong.id = c.congregacao_id
                     WHERE c.data = :data AND c.classe_id = :classe_id
-                    LIMIT 1
-                ");
-                $stmt->execute([':data' => $data, ':classe_id' => $classeId]);
+                ";
+                
+                // Se congregacao_id foi fornecido, adiciona ao filtro
+                if ($congregacaoId) {
+                    $sql .= " AND c.congregacao_id = :congregacao_id";
+                }
+                
+                $sql .= " LIMIT 1";
+                
+                $stmt = $pdo->prepare($sql);
+                $params = [':data' => $data, ':classe_id' => $classeId];
+                if ($congregacaoId) {
+                    $params[':congregacao_id'] = $congregacaoId;
+                }
+                $stmt->execute($params);
                 $chamadaExistente = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($chamadaExistente) {
@@ -395,20 +358,21 @@ try {
                 }
                 
                 if ($trimestre) {
-                    $trimestrePadronizado = padronizarTrimestre($trimestre);
+                    // Usa o método padronizarTrimestre do model
+                    $trimestrePadronizado = $chamadaModel->padronizarTrimestre($trimestre);
                     $where[] = "c.trimestre = :trimestre";
                     $params[':trimestre'] = $trimestrePadronizado;
                 }
                 
                 $sql = "SELECT 
                             COUNT(DISTINCT c.id) as total_chamadas,
-                            SUM(c.total_visitantes) as total_visitantes,
-                            SUM(c.total_biblias) as total_biblias,
-                            SUM(c.total_revistas) as total_revistas,
-                            SUM(c.oferta_classe) as total_ofertas,
-                            SUM(p.presente = 'presente') as total_presentes,
-                            SUM(p.presente = 'ausente') as total_ausentes,
-                            SUM(p.presente = 'justificado') as total_justificados
+                            COALESCE(SUM(c.total_visitantes), 0) as total_visitantes,
+                            COALESCE(SUM(c.total_biblias), 0) as total_biblias,
+                            COALESCE(SUM(c.total_revistas), 0) as total_revistas,
+                            COALESCE(SUM(c.oferta_classe), 0) as total_ofertas,
+                            COALESCE(SUM(CASE WHEN p.presente = 'presente' THEN 1 ELSE 0 END), 0) as total_presentes,
+                            COALESCE(SUM(CASE WHEN p.presente = 'ausente' THEN 1 ELSE 0 END), 0) as total_ausentes,
+                            COALESCE(SUM(CASE WHEN p.presente = 'justificado' THEN 1 ELSE 0 END), 0) as total_justificados
                         FROM chamadas c
                         LEFT JOIN presencas p ON p.chamada_id = c.id";
                 
@@ -423,8 +387,20 @@ try {
                 $stmt->execute();
                 
                 $estatisticas = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Garante que todos os campos tenham valores numéricos
+                $estatisticas['total_chamadas'] = (int)($estatisticas['total_chamadas'] ?? 0);
+                $estatisticas['total_visitantes'] = (int)($estatisticas['total_visitantes'] ?? 0);
+                $estatisticas['total_biblias'] = (int)($estatisticas['total_biblias'] ?? 0);
+                $estatisticas['total_revistas'] = (int)($estatisticas['total_revistas'] ?? 0);
+                $estatisticas['total_ofertas'] = (float)($estatisticas['total_ofertas'] ?? 0);
+                $estatisticas['total_presentes'] = (int)($estatisticas['total_presentes'] ?? 0);
+                $estatisticas['total_ausentes'] = (int)($estatisticas['total_ausentes'] ?? 0);
+                $estatisticas['total_justificados'] = (int)($estatisticas['total_justificados'] ?? 0);
+                
                 sendResponse('success', $estatisticas);
             } catch (PDOException $e) {
+                error_log("Erro ao buscar estatísticas: " . $e->getMessage());
                 sendResponse('error', 'Erro ao buscar estatísticas: ' . $e->getMessage());
             }
             break;

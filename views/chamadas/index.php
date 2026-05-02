@@ -5,13 +5,13 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Verificar se usuário está logado
-require_once __DIR__ . '/../../auth/valida_sessao.php';
+require_once '../../auth/valida_sessao.php';
 
 // Configurar título da página
 $pageTitle = 'Registrar Chamada';
 
-// Incluir header
-require_once __DIR__ . '/../../includes/header.php';
+// Incluir header (já contém navbar e todos os CSS/JS)
+require_once '../../includes/header.php';
 
 // Recupera dados do usuário logado
 $usuario_id       = $_SESSION['usuario_id'] ?? null;
@@ -37,73 +37,77 @@ $anoAtual = date('Y');
 $trimestreAtual = getTrimestreAtual();
 ?>
 
-<div class="main-container">
-    <!-- Cabeçalho Moderno -->
+<!-- Conteúdo principal -->
+<div class="container-fluid px-4">
+    <!-- Cabeçalho da Página -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" data-aos="fade-down">
         <div>
-            <h1 class="text-white mb-2">
-                <i class="fas fa-clipboard-list me-2"></i>
+            <h1 class="display-5 fw-bold mb-2" style="color: var(--gray-800);">
+                <i class="fas fa-clipboard-list me-3" style="color: var(--primary-600);"></i>
                 Registro de Chamada
             </h1>
-            <p class="text-white-50 mb-0">
-                <i class="fas fa-church me-1"></i> Escola Bíblica Dominical
-            </p>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: var(--primary-600);">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-book-open me-1"></i> Registrar Chamada
+                    </li>
+                </ol>
+            </nav>
         </div>
-        <div class="d-flex gap-2">
-            <div class="dropdown">
-                <button class="btn btn-light btn-modern dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="fas fa-user-circle me-1"></i> <?= htmlspecialchars($nome_usuario) ?>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><span class="dropdown-item-text"><small><?= ucfirst($perfil) ?></small></span></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="listar.php"><i class="fas fa-history me-2"></i> Histórico</a></li>
-                    <li><a class="dropdown-item text-danger" href="/escola/auth/logout.php"><i class="fas fa-sign-out-alt me-2"></i> Sair</a></li>
-                </ul>
-            </div>
+        <div>
+            <span class="badge-ebd badge-primary">
+                <i class="fas fa-calendar-alt me-1"></i> <?= date('d/m/Y') ?>
+            </span>
         </div>
     </div>
 
-    <!-- Card Principal -->
-    <div class="modern-card" data-aos="fade-up" data-aos-delay="100">
-        <div class="card-header-modern">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 class="mb-0">
-                    <i class="fas fa-filter me-2"></i> Filtros da Aula
-                </h5>
-                <span class="badge bg-light text-dark">
-                    <i class="fas fa-calendar-alt me-1"></i> <?= date('d/m/Y') ?>
-                </span>
-            </div>
+    <!-- Card Principal - Filtros -->
+    <div class="modern-card mb-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="card-header-modern bg-primary">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-filter me-2"></i> Filtros da Aula
+            </h5>
         </div>
         <div class="card-body p-4">
-            <!-- Formulário de filtros -->
-            <div class="row g-3">
+            <div class="row g-4">
+                <!-- Congregação -->
                 <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-church text-primary me-1"></i> Congregação
+                    <label class="form-label">
+                        <i class="fas fa-church me-2 text-primary"></i>
+                        <span class="fw-semibold">Congregação</span>
                     </label>
                     <select id="congregacaoSelect" class="form-select" <?= $perfil !== 'admin' ? 'disabled' : '' ?>>
                         <option value="">Selecione uma congregação...</option>
                     </select>
                     <?php if ($perfil !== 'admin' && $congregacao_id): ?>
                         <input type="hidden" id="congregacaoHidden" value="<?= $congregacao_id ?>">
-                        <small class="text-muted">Filtrado pela sua congregação</small>
+                        <small class="text-muted mt-1 d-block">
+                            <i class="fas fa-info-circle me-1"></i> Filtrado pela sua congregação
+                        </small>
                     <?php endif; ?>
                 </div>
 
+                <!-- Classe -->
                 <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-users text-primary me-1"></i> Classe
+                    <label class="form-label">
+                        <i class="fas fa-users me-2 text-primary"></i>
+                        <span class="fw-semibold">Classe</span>
                     </label>
                     <select id="classeSelect" class="form-select" disabled>
                         <option value="">Selecione uma classe primeiro</option>
                     </select>
                 </div>
 
+                <!-- Ano -->
                 <div class="col-6 col-md-2">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-calendar text-primary me-1"></i> Ano
+                    <label class="form-label">
+                        <i class="fas fa-calendar me-2 text-primary"></i>
+                        <span class="fw-semibold">Ano</span>
                     </label>
                     <select id="anoSelect" class="form-select">
                         <?php
@@ -115,9 +119,11 @@ $trimestreAtual = getTrimestreAtual();
                     </select>
                 </div>
 
+                <!-- Trimestre -->
                 <div class="col-6 col-md-2">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-chart-line text-primary me-1"></i> Trimestre
+                    <label class="form-label">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        <span class="fw-semibold">Trimestre</span>
                     </label>
                     <select id="trimestreSelect" class="form-select">
                         <option value="1" <?= $trimestreAtual == 1 ? 'selected' : '' ?>>1º Trimestre</option>
@@ -133,45 +139,51 @@ $trimestreAtual = getTrimestreAtual();
                     <button type="button" id="btnCarregarAlunos" class="btn btn-modern btn-modern-primary">
                         <i class="fas fa-users me-2"></i> Carregar Alunos
                     </button>
-                    <button type="button" id="btnVerificarChamada" class="btn btn-modern btn-modern-primary bg-info border-0 ms-2">
-                        <i class="fas fa-search me-2"></i> Verificar Chamada Existente
+                    <button type="button" id="btnVerificarChamada" class="btn btn-modern btn-modern-secondary ms-2">
+                        <i class="fas fa-search me-2"></i> Verificar Chamada
                     </button>
-                    <span id="loadingAlunos" class="ms-2 d-none">
-                        <span class="spinner-border spinner-border-sm" role="status"></span> Carregando...
+                    <span id="loadingAlunos" class="ms-3 d-none">
+                        <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                        <span class="ms-2">Carregando...</span>
                     </span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Data da Chamada -->
-    <div class="modern-card mt-4" data-aos="fade-up" data-aos-delay="200">
-        <div class="card-header-modern bg-secondary">
-            <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i> Informações da Aula</h5>
+    <!-- Informações da Aula -->
+    <div class="modern-card mb-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="card-header-modern" style="background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%); color: white;">
+            <h5 class="mb-0">
+                <i class="fas fa-calendar-check me-2"></i> Informações da Aula
+            </h5>
         </div>
         <div class="card-body p-4">
-            <div class="row g-3">
+            <div class="row g-4">
                 <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-calendar-day me-1 text-primary"></i> Data da Aula
+                    <label class="form-label">
+                        <i class="fas fa-calendar-day me-2 text-primary"></i>
+                        <span class="fw-semibold">Data da Aula</span>
                     </label>
                     <input type="date" id="dataChamada" class="form-control" value="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-tag me-1 text-primary"></i> Trimestre de Registro
+                    <label class="form-label">
+                        <i class="fas fa-tag me-2 text-primary"></i>
+                        <span class="fw-semibold">Trimestre de Registro</span>
                     </label>
-                    <div class="alert alert-info mb-0 py-2">
-                        <i class="fas fa-info-circle me-1"></i>
-                        <span id="trimestreFormatadoDisplay"><?= $anoAtual ?>-T<?= $trimestreAtual ?></span>
-                        <small class="text-muted d-block">Formato salvo: ANO-TRIMESTRE</small>
+                    <div class="alert-ebd alert-info-ebd mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong id="trimestreFormatadoDisplay"><?= $anoAtual ?>-T<?= $trimestreAtual ?></strong>
+                        <small class="d-block mt-1">Formato salvo: ANO-TRIMESTRE</small>
                     </div>
                 </div>
                 <div class="col-12 col-md-4">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-chalkboard-user me-1 text-primary"></i> Professor
+                    <label class="form-label">
+                        <i class="fas fa-chalkboard-user me-2 text-primary"></i>
+                        <span class="fw-semibold">Professor</span>
                     </label>
-                    <input type="text" class="form-control" value="<?= htmlspecialchars($nome_usuario) ?>" readonly disabled>
+                    <input type="text" class="form-control bg-light" value="<?= htmlspecialchars($nome_usuario) ?>" readonly disabled>
                     <input type="hidden" id="professorId" value="<?= $usuario_id ?>">
                 </div>
             </div>
@@ -179,38 +191,38 @@ $trimestreAtual = getTrimestreAtual();
     </div>
 
     <!-- Alerta de chamada existente -->
-    <div id="chamadaExistenteAlert" class="alert alert-warning d-none mt-3" data-aos="fade-up">
+    <div id="chamadaExistenteAlert" class="alert-ebd alert-warning-ebd d-none mb-4" data-aos="fade-up">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <span id="chamadaExistenteMsg"></span>
+                <i class="fas fa-exclamation-triangle me-2" style="color: var(--warning);"></i>
+                <span id="chamadaExistenteMsg" class="fw-semibold"></span>
             </div>
-            <button type="button" id="btnEditarExistente" class="btn btn-warning btn-sm">
+            <button type="button" id="btnEditarExistente" class="btn btn-modern" style="background: var(--warning); color: white;">
                 <i class="fas fa-edit me-1"></i> Editar Chamada Existente
             </button>
         </div>
     </div>
 
     <!-- Tabela de Alunos -->
-    <div id="containerAlunos" class="modern-card mt-4 d-none" data-aos="fade-up" data-aos-delay="300">
+    <div id="containerAlunos" class="modern-card mb-4 d-none" data-aos="fade-up" data-aos-delay="300">
         <div class="card-header-modern bg-success">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 class="mb-0">
+                <h5 class="mb-0 text-white">
                     <i class="fas fa-users me-2"></i> Alunos Matriculados
                 </h5>
                 <div class="d-flex gap-2">
                     <button type="button" id="btnSelectAllPresentes" class="btn btn-light btn-sm">
-                        <i class="fas fa-check-double text-success me-1"></i> Marcar Todos
+                        <i class="fas fa-check-double me-1" style="color: var(--success);"></i> Marcar Todos
                     </button>
                     <button type="button" id="btnClearAll" class="btn btn-light btn-sm">
-                        <i class="fas fa-undo-alt text-warning me-1"></i> Limpar
+                        <i class="fas fa-undo-alt me-1" style="color: var(--warning);"></i> Limpar
                     </button>
                 </div>
             </div>
         </div>
         <div class="card-body p-0">
-            <div class="table-wrapper">
-                <table class="custom-table">
+            <div class="table-responsive">
+                <table class="custom-table mb-0">
                     <thead>
                         <tr>
                             <th style="width: 50px">#</th>
@@ -220,9 +232,9 @@ $trimestreAtual = getTrimestreAtual();
                     </thead>
                     <tbody id="tabelaAlunos">
                         <tr>
-                            <td colspan="3" class="text-center text-muted py-4">
-                                <i class="fas fa-users-slash fa-2x mb-2 d-block"></i>
-                                Nenhum aluno carregado. Selecione uma classe e clique em "Carregar Alunos".
+                            <td colspan="3" class="text-center py-5">
+                                <i class="fas fa-users-slash fa-3x mb-3 d-block" style="color: var(--gray-400);"></i>
+                                <p class="text-muted mb-0">Nenhum aluno carregado.<br>Selecione uma classe e clique em "Carregar Alunos".</p>
                             </td>
                         </tr>
                     </tbody>
@@ -232,33 +244,42 @@ $trimestreAtual = getTrimestreAtual();
     </div>
 
     <!-- Totais e Ofertas -->
-    <div id="containerTotais" class="modern-card mt-4 d-none" data-aos="fade-up" data-aos-delay="400">
-        <div class="card-header-modern bg-info">
-            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Resumo da Aula</h5>
+    <div id="containerTotais" class="modern-card mb-4 d-none" data-aos="fade-up" data-aos-delay="400">
+        <div class="card-header-modern" style="background: linear-gradient(135deg, var(--info) 0%, #2563eb 100%); color: white;">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i> Resumo da Aula
+            </h5>
         </div>
         <div class="card-body p-4">
-            <div class="row g-3">
+            <div class="row g-4">
                 <div class="col-6 col-md-3">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-dollar-sign text-success me-1"></i> Oferta (R$)
+                    <label class="form-label">
+                        <i class="fas fa-dollar-sign me-2" style="color: var(--success);"></i>
+                        <span class="fw-semibold">Oferta (R$)</span>
                     </label>
-                    <input type="number" step="0.01" min="0" id="ofertaClasse" class="form-control" value="0.00">
+                    <div class="input-group">
+                        <span class="input-group-text">R$</span>
+                        <input type="number" step="0.01" min="0" id="ofertaClasse" class="form-control" value="0.00">
+                    </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-user-plus text-info me-1"></i> Visitantes
+                    <label class="form-label">
+                        <i class="fas fa-user-plus me-2" style="color: var(--info);"></i>
+                        <span class="fw-semibold">Visitantes</span>
                     </label>
                     <input type="number" min="0" id="totalVisitantes" class="form-control" value="0">
                 </div>
                 <div class="col-6 col-md-3">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-book text-primary me-1"></i> Bíblias
+                    <label class="form-label">
+                        <i class="fas fa-book me-2 text-primary"></i>
+                        <span class="fw-semibold">Bíblias</span>
                     </label>
                     <input type="number" min="0" id="totalBiblias" class="form-control" value="0">
                 </div>
                 <div class="col-6 col-md-3">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-magazine text-warning me-1"></i> Revistas
+                    <label class="form-label">
+                        <i class="fas fa-magazine me-2" style="color: var(--warning);"></i>
+                        <span class="fw-semibold">Revistas</span>
                     </label>
                     <input type="number" min="0" id="totalRevistas" class="form-control" value="0">
                 </div>
@@ -266,11 +287,12 @@ $trimestreAtual = getTrimestreAtual();
 
             <div class="row mt-4">
                 <div class="col-12">
-                    <button type="button" id="btnSalvarChamada" class="btn btn-modern btn-modern-success w-100 w-md-auto">
+                    <button type="button" id="btnSalvarChamada" class="btn btn-modern btn-modern-success">
                         <i class="fas fa-save me-2"></i> Salvar Chamada
                     </button>
-                    <span id="loadingSalvar" class="ms-2 d-none">
-                        <span class="spinner-border spinner-border-sm" role="status"></span> Salvando...
+                    <span id="loadingSalvar" class="ms-3 d-none">
+                        <span class="spinner-border spinner-border-sm text-success" role="status"></span>
+                        <span class="ms-2">Salvando...</span>
                     </span>
                 </div>
             </div>
@@ -283,70 +305,133 @@ $trimestreAtual = getTrimestreAtual();
     <i class="fas fa-save fa-lg"></i>
 </button>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-<script>
-    // Inicializa AOS animations
-    AOS.init({
-        duration: 600,
-        once: true,
-        offset: 50
-    });
+<style>
+/* Estilos adicionais específicos para esta página */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: var(--gray-500);
+}
 
-    // Variáveis globais
-    const USUARIO_PERFIL = '<?= $perfil ?>';
-    const USUARIO_CONGR_ID = <?= json_encode($congregacao_id) ?>;
-    const USUARIO_ID = <?= (int)$usuario_id ?>;
-    const BASE_URL = '/escola/controllers/chamada.php';
-    const ANO_ATUAL = <?= $anoAtual ?>;
-    const TRIMESTRE_ATUAL = <?= $trimestreAtual ?>;
+.input-group-text {
+    background-color: var(--gray-100);
+    border: 1.5px solid var(--gray-200);
+    border-radius: 10px 0 0 10px;
+}
 
-    // Função para obter trimestre formatado
-    function getTrimestreFormatado() {
-        const ano = document.getElementById('anoSelect')?.value || ANO_ATUAL;
-        const trimestre = document.getElementById('trimestreSelect')?.value || TRIMESTRE_ATUAL;
-        return `${ano}-T${trimestre}`;
+.form-select:disabled {
+    background-color: var(--gray-100);
+    cursor: not-allowed;
+}
+
+.modern-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.modern-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.alert-ebd {
+    border-radius: 12px;
+    padding: 16px 20px;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 0 16px !important;
     }
+    
+    .display-5 {
+        font-size: 1.75rem;
+    }
+    
+    .btn-modern {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .btn-modern.ms-2 {
+        margin-left: 0 !important;
+    }
+}
+</style>
 
-    // Atualiza display do trimestre
-    document.addEventListener('DOMContentLoaded', function() {
-        const anoSelect = document.getElementById('anoSelect');
-        const trimestreSelect = document.getElementById('trimestreSelect');
-        const trimestreDisplay = document.getElementById('trimestreFormatadoDisplay');
-        
-        if (anoSelect && trimestreSelect && trimestreDisplay) {
-            const updateTrimestreDisplay = () => {
-                trimestreDisplay.textContent = getTrimestreFormatado();
-            };
-            anoSelect.addEventListener('change', updateTrimestreDisplay);
-            trimestreSelect.addEventListener('change', updateTrimestreDisplay);
+<script>
+// Inicializa AOS animations
+AOS.init({
+    duration: 600,
+    once: true,
+    offset: 50
+});
+
+// Variáveis globais
+const USUARIO_PERFIL = '<?= $perfil ?>';
+const USUARIO_CONGR_ID = <?= json_encode($congregacao_id) ?>;
+const USUARIO_ID = <?= (int)$usuario_id ?>;
+const BASE_URL = '../../controllers/chamada.php';
+const ANO_ATUAL = <?= $anoAtual ?>;
+const TRIMESTRE_ATUAL = <?= $trimestreAtual ?>;
+
+// Função para obter trimestre formatado
+function getTrimestreFormatado() {
+    const ano = document.getElementById('anoSelect')?.value || ANO_ATUAL;
+    const trimestre = document.getElementById('trimestreSelect')?.value || TRIMESTRE_ATUAL;
+    return `${ano}-T${trimestre}`;
+}
+
+// Atualiza display do trimestre
+document.addEventListener('DOMContentLoaded', function() {
+    const anoSelect = document.getElementById('anoSelect');
+    const trimestreSelect = document.getElementById('trimestreSelect');
+    const trimestreDisplay = document.getElementById('trimestreFormatadoDisplay');
+    
+    if (anoSelect && trimestreSelect && trimestreDisplay) {
+        const updateTrimestreDisplay = () => {
+            trimestreDisplay.textContent = getTrimestreFormatado();
+        };
+        anoSelect.addEventListener('change', updateTrimestreDisplay);
+        trimestreSelect.addEventListener('change', updateTrimestreDisplay);
+    }
+    
+    // Show FAB only on mobile when totais container is visible
+    const observer = new MutationObserver(function() {
+        const totaisContainer = document.getElementById('containerTotais');
+        const fab = document.getElementById('fabSalvar');
+        if (totaisContainer && fab) {
+            const isVisible = !totaisContainer.classList.contains('d-none');
+            fab.style.display = isVisible ? 'flex' : 'none';
         }
-        
-        // Show FAB only on mobile when totais container is visible
-        const observer = new MutationObserver(function() {
-            const totaisContainer = document.getElementById('containerTotais');
-            const fab = document.getElementById('fabSalvar');
-            if (totaisContainer && fab) {
-                fab.style.display = totaisContainer.classList.contains('d-none') ? 'none' : 'flex';
-            }
-        });
-        
-        observer.observe(document.getElementById('containerTotais') || document.body, { 
+    });
+    
+    const totaisContainer = document.getElementById('containerTotais');
+    if (totaisContainer) {
+        observer.observe(totaisContainer, { 
             attributes: true, 
             attributeFilter: ['class'] 
         });
-        
-        // FAB click event
-        const fabSalvar = document.getElementById('fabSalvar');
-        if (fabSalvar) {
-            fabSalvar.addEventListener('click', function() {
-                const btnSalvar = document.getElementById('btnSalvarChamada');
-                if (btnSalvar) btnSalvar.click();
-            });
-        }
-    });
+    }
+    
+    // FAB click event
+    const fabSalvar = document.getElementById('fabSalvar');
+    if (fabSalvar) {
+        fabSalvar.addEventListener('click', function() {
+            const btnSalvar = document.getElementById('btnSalvarChamada');
+            if (btnSalvar) {
+                btnSalvar.click();
+                fabSalvar.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    fabSalvar.style.transform = 'scale(1)';
+                }, 200);
+            }
+        });
+    }
+});
 </script>
+
 <script src="js/chamada.js"></script>
-</body>
-</html>
+
+<?php
+// Incluir footer
+require_once '../../includes/footer.php';
+?>

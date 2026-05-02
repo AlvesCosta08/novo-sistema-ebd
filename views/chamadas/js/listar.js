@@ -1,8 +1,6 @@
-// listar.js - Listagem e gerenciamento de chamadas (versão moderna)
+// listar.js - Listagem e gerenciamento de chamadas (versão corrigida)
 
 document.addEventListener('DOMContentLoaded', function() {
-    let dataTable = null;
-    
     // Elementos da interface
     const filtroCongregacao = document.getElementById('filtroCongregacao');
     const filtroClasse = document.getElementById('filtroClasse');
@@ -14,14 +12,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultCount = document.getElementById('resultCount');
     
     // Modais
-    const modalExcluir = new bootstrap.Modal(document.getElementById('modalExcluir'));
-    const modalDetalhes = new bootstrap.Modal(document.getElementById('modalDetalhes'));
+    let modalExcluir = null;
+    let modalDetalhes = null;
+    const modalExcluirEl = document.getElementById('modalExcluir');
+    const modalDetalhesEl = document.getElementById('modalDetalhes');
+    
+    if (modalExcluirEl) modalExcluir = new bootstrap.Modal(modalExcluirEl);
+    if (modalDetalhesEl) modalDetalhes = new bootstrap.Modal(modalDetalhesEl);
+    
     const btnConfirmaExcluir = document.getElementById('btnConfirmaExcluir');
     let chamadaIdParaExcluir = null;
-    let dadosChamadas = []; // Armazena dados para exportação
-
-    // Variáveis globais
-    let classesDisponiveis = [];
+    let dadosChamadas = [];
 
     // Inicialização
     carregarCongregacoes();
@@ -61,14 +62,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (chamadaIdParaExcluir) {
                 excluirChamada(chamadaIdParaExcluir);
             }
-            modalExcluir.hide();
+            if (modalExcluir) modalExcluir.hide();
         });
     }
 
     // Carrega dados iniciais
     executarFiltro();
 
-    // Funções auxiliares
     function showLoading() {
         if (loadingIndicator) loadingIndicator.classList.remove('d-none');
         if (tabelaResultados) {
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const toastEl = document.createElement('div');
-        toastEl.className = `toast align-items-center text-white bg-${tipo} border-0`;
+        toastEl.className = `toast align-items-center text-white bg-${tipo} border-0 show`;
         toastEl.setAttribute('role', 'alert');
         toastEl.style.minWidth = '250px';
         toastEl.style.marginBottom = '10px';
@@ -118,9 +118,11 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         toastContainer.appendChild(toastEl);
-        const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-        toast.show();
-        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        
+        setTimeout(() => {
+            toastEl.classList.remove('show');
+            setTimeout(() => toastEl.remove(), 300);
+        }, 4000);
     }
 
     async function carregarCongregacoes() {
@@ -134,15 +136,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (data.status === 'success' && filtroCongregacao) {
                 filtroCongregacao.innerHTML = '<option value="">Todas as congregações</option>';
-                data.data.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.nome;
-                    if (USUARIO_PERFIL !== 'admin' && item.id == USUARIO_CONGR_ID) {
-                        opt.selected = true;
-                    }
-                    filtroCongregacao.appendChild(opt);
-                });
+                if (Array.isArray(data.data)) {
+                    data.data.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.nome;
+                        if (USUARIO_PERFIL !== 'admin' && item.id == USUARIO_CONGR_ID) {
+                            opt.selected = true;
+                        }
+                        filtroCongregacao.appendChild(opt);
+                    });
+                }
                 
                 if (USUARIO_PERFIL !== 'admin' && USUARIO_CONGR_ID) {
                     carregarClasses(USUARIO_CONGR_ID);
@@ -150,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (e) {
             console.error('Erro ao carregar congregações:', e);
+            exibirToast('Erro ao carregar congregações', 'danger');
         }
     }
 
@@ -170,15 +175,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const data = await response.json();
             
-            if (data.status === 'success') {
-                classesDisponiveis = data.data || [];
+            if (data.status === 'success' && data.data) {
                 filtroClasse.innerHTML = '<option value="">Todas as classes</option>';
-                classesDisponiveis.forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.nome;
-                    filtroClasse.appendChild(opt);
-                });
+                if (Array.isArray(data.data)) {
+                    data.data.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.nome;
+                        filtroClasse.appendChild(opt);
+                    });
+                }
                 filtroClasse.disabled = false;
             } else {
                 filtroClasse.innerHTML = '<option value="">Erro ao carregar</option>';
@@ -197,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function limparFiltros() {
-        if (filtroCongregacao) filtroCongregacao.value = '';
+        if (filtroCongregacao && USUARIO_PERFIL === 'admin') filtroCongregacao.value = '';
         if (filtroClasse) limparClasses();
         
         const filtroAno = document.getElementById('filtroAno');
@@ -220,6 +226,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (filtroCongregacao && filtroCongregacao.value) {
             payload.congregacao_id = parseInt(filtroCongregacao.value);
+        } else if (USUARIO_PERFIL !== 'admin' && USUARIO_CONGR_ID) {
+            payload.congregacao_id = parseInt(USUARIO_CONGR_ID);
         }
         
         if (filtroClasse && filtroClasse.value) {
@@ -308,7 +316,8 @@ document.addEventListener('DOMContentLoaded', function() {
         lista.forEach(chamada => {
             let dataFormatada = chamada.data;
             try {
-                dataFormatada = new Date(chamada.data + 'T00:00:00').toLocaleDateString('pt-BR');
+                const [ano, mes, dia] = chamada.data.split('-');
+                dataFormatada = `${dia}/${mes}/${ano}`;
             } catch(e) {}
             
             let trimestreExibicao = chamada.trimestre;
@@ -319,11 +328,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <tr>
-                    <td><span class="badge bg-light text-dark">${dataFormatada}</span></td>
+                    <td><span class="badge bg-light text-dark">${escapeHtml(dataFormatada)}</span></td>
                     <td>${escapeHtml(chamada.nome_congregacao || '-')}</td>
                     <td><span class="badge bg-info bg-opacity-25 text-dark">${escapeHtml(chamada.nome_classe || '-')}</span></td>
                     <td>${escapeHtml(chamada.nome_professor || '-')}</td>
-                    <td class="text-center"><span class="badge bg-secondary">${trimestreExibicao}</span></td>
+                    <td class="text-center"><span class="badge bg-secondary">${escapeHtml(trimestreExibicao)}</span></td>
                     <td class="text-center"><span class="badge bg-success">${chamada.total_presentes || 0}</span></td>
                     <td class="text-center"><span class="badge bg-danger">${chamada.total_ausentes || 0}</span></td>
                     <td class="text-center"><span class="badge bg-warning">${chamada.total_justificados || 0}</span></td>
@@ -333,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <a href="editar.php?id=${chamada.id}" class="btn btn-outline-primary" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <button class="btn btn-outline-danger btn-excluir" data-id="${chamada.id}" data-descricao="${dataFormatada} - ${escapeHtml(chamada.nome_classe)}" title="Excluir">
+                            <button class="btn btn-outline-danger btn-excluir" data-id="${chamada.id}" data-descricao="${escapeHtml(dataFormatada)} - ${escapeHtml(chamada.nome_classe)}" title="Excluir">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                             <button class="btn btn-outline-info btn-detalhes" data-id="${chamada.id}" title="Detalhes">
@@ -347,20 +356,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         tabelaResultados.innerHTML = html;
         
+        // Eventos dos botões
         document.querySelectorAll('.btn-excluir').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
                 chamadaIdParaExcluir = this.dataset.id;
                 const descricao = this.dataset.descricao;
                 const msgConfirmacao = document.getElementById('msgConfirmacaoExclusao');
                 if (msgConfirmacao) {
                     msgConfirmacao.textContent = `Tem certeza que deseja excluir a chamada de ${descricao}?`;
                 }
-                modalExcluir.show();
+                if (modalExcluir) modalExcluir.show();
             });
         });
         
         document.querySelectorAll('.btn-detalhes').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
                 const id = this.dataset.id;
                 carregarDetalhesChamada(id);
             });
@@ -369,29 +381,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function atualizarEstatisticas(dados) {
         if (!dados || dados.length === 0) {
-            document.getElementById('totalChamadas').textContent = '0';
-            document.getElementById('totalPresencas').textContent = '0';
-            document.getElementById('mediaPresenca').innerHTML = '0<small class="fs-6">%</small>';
-            document.getElementById('totalOfertas').textContent = 'R$ 0,00';
+            const totalChamadas = document.getElementById('totalChamadas');
+            const totalPresencas = document.getElementById('totalPresencas');
+            const mediaPresenca = document.getElementById('mediaPresenca');
+            const totalOfertas = document.getElementById('totalOfertas');
+            
+            if (totalChamadas) totalChamadas.textContent = '0';
+            if (totalPresencas) totalPresencas.textContent = '0';
+            if (mediaPresenca) mediaPresenca.innerHTML = '0<small class="fs-6">%</small>';
+            if (totalOfertas) totalOfertas.textContent = 'R$ 0,00';
             return;
         }
         
-        let totalPresentes = 0, totalAusentes = 0, totalJustificados = 0, totalOfertas = 0;
+        let totalPresentes = 0, totalAusentes = 0, totalJustificados = 0, totalOfertasValor = 0;
         
         dados.forEach(chamada => {
             totalPresentes += parseInt(chamada.total_presentes) || 0;
             totalAusentes += parseInt(chamada.total_ausentes) || 0;
             totalJustificados += parseInt(chamada.total_justificados) || 0;
-            totalOfertas += parseFloat(chamada.oferta_classe) || 0;
+            totalOfertasValor += parseFloat(chamada.oferta_classe) || 0;
         });
         
         const totalMarcacoes = totalPresentes + totalAusentes + totalJustificados;
-        const mediaPresenca = totalMarcacoes > 0 ? ((totalPresentes / totalMarcacoes) * 100).toFixed(1) : 0;
+        const mediaPresencaValor = totalMarcacoes > 0 ? ((totalPresentes / totalMarcacoes) * 100).toFixed(1) : 0;
         
-        document.getElementById('totalChamadas').textContent = dados.length;
-        document.getElementById('totalPresencas').textContent = totalPresentes;
-        document.getElementById('mediaPresenca').innerHTML = mediaPresenca + '<small class="fs-6">%</small>';
-        document.getElementById('totalOfertas').textContent = 'R$ ' + totalOfertas.toFixed(2);
+        const totalChamadas = document.getElementById('totalChamadas');
+        const totalPresencas = document.getElementById('totalPresencas');
+        const mediaPresenca = document.getElementById('mediaPresenca');
+        const totalOfertas = document.getElementById('totalOfertas');
+        
+        if (totalChamadas) totalChamadas.textContent = dados.length;
+        if (totalPresencas) totalPresencas.textContent = totalPresentes;
+        if (mediaPresenca) mediaPresenca.innerHTML = mediaPresencaValor + '<small class="fs-6">%</small>';
+        if (totalOfertas) totalOfertas.textContent = 'R$ ' + totalOfertasValor.toFixed(2);
     }
 
     async function carregarDetalhesChamada(id) {
@@ -408,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch(BASE_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type':application/json' },
                 body: JSON.stringify({ acao: 'getChamada', chamada_id: parseInt(id) })
             });
             const result = await response.json();
@@ -423,13 +445,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             }
+            if (modalDetalhes) modalDetalhes.show();
         } catch (e) {
+            console.error('Erro ao carregar detalhes:', e);
             modalBody.innerHTML = `
                 <div class="alert alert-danger">
                     <i class="fas fa-wifi me-2"></i>
                     Erro de conexão ao carregar detalhes
                 </div>
             `;
+            if (modalDetalhes) modalDetalhes.show();
         }
     }
 
@@ -466,7 +491,11 @@ document.addEventListener('DOMContentLoaded', function() {
             alunosHtml = '<p class="text-muted text-center">Nenhum aluno registrado nesta chamada.</p>';
         }
         
-        const dataFormatada = new Date(chamada.data + 'T00:00:00').toLocaleDateString('pt-BR');
+        let dataFormatada = chamada.data;
+        try {
+            const [ano, mes, dia] = chamada.data.split('-');
+            dataFormatada = `${dia}/${mes}/${ano}`;
+        } catch(e) {}
         
         let trimestreExibicao = chamada.trimestre;
         if (chamada.trimestre && chamada.trimestre.match(/^\d{4}-T[1-4]$/)) {
@@ -477,7 +506,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modalBody.innerHTML = `
             <div class="row mb-3">
                 <div class="col-md-6"><strong><i class="fas fa-calendar me-1"></i> Data:</strong> ${dataFormatada}</div>
-                <div class="col-md-6"><strong><i class="fas fa-tag me-1"></i> Trimestre:</strong> <span class="badge bg-secondary">${trimestreExibicao}</span></div>
+                <div class="col-md-6"><strong><i class="fas fa-tag me-1"></i> Trimestre:</strong> <span class="badge bg-secondary">${escapeHtml(trimestreExibicao)}</span></div>
             </div>
             <div class="row mb-3">
                 <div class="col-md-6"><strong><i class="fas fa-church me-1"></i> Congregação:</strong> ${escapeHtml(chamada.nome_congregacao || '-')}</div>
@@ -496,8 +525,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <h6 class="mb-3"><i class="fas fa-users me-2"></i> Lista de Presença (${chamada.alunos?.length || 0} alunos)</h6>
             ${alunosHtml}
         `;
-        
-        modalDetalhes.show();
     }
 
     async function excluirChamada(id) {
@@ -516,6 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 exibirToast('Erro: ' + (result.message || 'Falha ao excluir chamada'), 'danger');
             }
         } catch (e) {
+            console.error('Erro ao excluir:', e);
             exibirToast('Erro de conexão ao excluir chamada', 'danger');
         }
     }
@@ -528,7 +556,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const headers = ['Data', 'Congregação', 'Classe', 'Professor', 'Trimestre', 'Presentes', 'Ausentes', 'Justificados', 'Oferta'];
         const rows = dadosChamadas.map(chamada => {
-            const dataFormatada = new Date(chamada.data + 'T00:00:00').toLocaleDateString('pt-BR');
+            let dataFormatada = chamada.data;
+            try {
+                const [ano, mes, dia] = chamada.data.split('-');
+                dataFormatada = `${dia}/${mes}/${ano}`;
+            } catch(e) {}
+            
             let trimestreExibicao = chamada.trimestre;
             if (chamada.trimestre && chamada.trimestre.match(/^\d{4}-T[1-4]$/)) {
                 const [ano, t] = chamada.trimestre.split('-T');

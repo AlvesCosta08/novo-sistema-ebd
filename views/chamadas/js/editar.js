@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     let confirmacaoModal = null;
     let sucessoModal = null;
 
+    // Verificar se CHAMADA_ID está definido
+    if (typeof CHAMADA_ID === 'undefined' || !CHAMADA_ID) {
+        formContainer.innerHTML = `<div class="alert alert-danger m-4"><i class="fas fa-exclamation-triangle me-2"></i>ID da chamada não informado. <a href="listar.php">Voltar para lista</a></div>`;
+        return;
+    }
+
     // Inicializar modais com segurança
     const modalConfirmacaoEl = document.getElementById('modalConfirmacao');
     const modalSucessoEl = document.getElementById('modalSucesso');
@@ -19,12 +25,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     try {
+        console.log('Carregando chamada ID:', CHAMADA_ID);
+        console.log('BASE_URL:', BASE_URL);
+        
         const res = await fetch(BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ acao: 'getChamada', chamada_id: CHAMADA_ID })
         });
         const data = await res.json();
+        
+        console.log('Resposta da API:', data);
         
         if (data.status !== 'success') {
             formContainer.innerHTML = `<div class="alert alert-danger m-4"><i class="fas fa-exclamation-triangle me-2"></i>${data.message || 'Não foi possível carregar a chamada'}</div>`;
@@ -43,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     } catch (e) {
         console.error('Erro ao carregar edição:', e);
-        formContainer.innerHTML = `<div class="alert alert-danger m-4"><i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar dados da chamada. Tente novamente.</div>`;
+        formContainer.innerHTML = `<div class="alert alert-danger m-4"><i class="fas fa-exclamation-triangle me-2"></i>Erro ao carregar dados da chamada. Tente novamente.<br><small>${e.message}</small></div>`;
     }
 
     function configurarEventos(chamada) {
@@ -52,7 +63,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             btnSalvar.addEventListener('click', () => {
                 if (confirmacaoModal) {
                     confirmacaoModal.show();
-                    document.getElementById('btnConfirmarSalvar').onclick = () => salvarEdicao();
+                    const btnConfirmar = document.getElementById('btnConfirmarSalvar');
+                    if (btnConfirmar) {
+                        // Remove listener anterior para evitar duplicação
+                        const newBtn = btnConfirmar.cloneNode(true);
+                        btnConfirmar.parentNode.replaceChild(newBtn, btnConfirmar);
+                        newBtn.addEventListener('click', () => salvarEdicao());
+                    }
                 } else {
                     salvarEdicao();
                 }
@@ -103,7 +120,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             overlay = document.createElement('div');
             overlay.id = 'globalLoading';
             overlay.className = 'loading-overlay';
-            overlay.innerHTML = '<div class="spinner-custom"></div>';
+            overlay.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
             document.body.appendChild(overlay);
         }
         overlay.style.display = 'flex';
@@ -179,10 +197,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <td class="text-center"><span class="badge bg-secondary rounded-pill">${index + 1}</span></td>
                     <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${aluno.id}"></td>
                     <td>
-                        <div class="radio-group">
-                            <label class="radio-option"><input type="radio" name="status_${aluno.id}" value="presente" class="form-check-input" checked><span class="badge badge-presente">Presente</span></label>
-                            <label class="radio-option"><input type="radio" name="status_${aluno.id}" value="ausente" class="form-check-input"><span class="badge badge-ausente">Ausente</span></label>
-                            <label class="radio-option"><input type="radio" name="status_${aluno.id}" value="justificado" class="form-check-input"><span class="badge badge-justificado">Justificado</span></label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <label class="radio-option d-inline-flex align-items-center gap-1">
+                                <input type="radio" name="status_${aluno.id}" value="presente" class="form-check-input" checked>
+                                <span class="badge bg-success">Presente</span>
+                            </label>
+                            <label class="radio-option d-inline-flex align-items-center gap-1">
+                                <input type="radio" name="status_${aluno.id}" value="ausente" class="form-check-input">
+                                <span class="badge bg-danger">Ausente</span>
+                            </label>
+                            <label class="radio-option d-inline-flex align-items-center gap-1">
+                                <input type="radio" name="status_${aluno.id}" value="justificado" class="form-check-input">
+                                <span class="badge bg-warning text-dark">Justificado</span>
+                            </label>
                         </div>
                     </td>
                 </tr>
@@ -215,6 +242,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         let alunosHtml = '';
         if (chamada.alunos && chamada.alunos.length > 0) {
             chamada.alunos.forEach((aluno, index) => {
+                // CORRIGIDO: usar aluno.id (não aluno.aluno_id)
+                const alunoId = aluno.aluno_id || aluno.id;
                 const presente = aluno.presente === 'presente' ? 'checked' : '';
                 const ausente = aluno.presente === 'ausente' ? 'checked' : '';
                 const justificado = aluno.presente === 'justificado' ? 'checked' : '';
@@ -222,12 +251,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 alunosHtml += `
                     <tr>
                         <td class="text-center"><span class="badge bg-secondary rounded-pill">${index + 1}</span></td>
-                        <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${aluno.aluno_id}"></td>
+                        <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${alunoId}"></td>
                         <td>
-                            <div class="radio-group">
-                                <label class="radio-option"><input type="radio" name="status_${aluno.aluno_id}" value="presente" class="form-check-input" ${presente}><span class="badge badge-presente">Presente</span></label>
-                                <label class="radio-option"><input type="radio" name="status_${aluno.aluno_id}" value="ausente" class="form-check-input" ${ausente}><span class="badge badge-ausente">Ausente</span></label>
-                                <label class="radio-option"><input type="radio" name="status_${aluno.aluno_id}" value="justificado" class="form-check-input" ${justificado}><span class="badge badge-justificado">Justificado</span></label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <label class="radio-option d-inline-flex align-items-center gap-1">
+                                    <input type="radio" name="status_${alunoId}" value="presente" class="form-check-input" ${presente}>
+                                    <span class="badge bg-success">Presente</span>
+                                </label>
+                                <label class="radio-option d-inline-flex align-items-center gap-1">
+                                    <input type="radio" name="status_${alunoId}" value="ausente" class="form-check-input" ${ausente}>
+                                    <span class="badge bg-danger">Ausente</span>
+                                </label>
+                                <label class="radio-option d-inline-flex align-items-center gap-1">
+                                    <input type="radio" name="status_${alunoId}" value="justificado" class="form-check-input" ${justificado}>
+                                    <span class="badge bg-warning text-dark">Justificado</span>
+                                </label>
                             </div>
                         </td>
                     </tr>
@@ -388,6 +426,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             total_revistas: parseInt(document.getElementById('totalRevistas')?.value) || 0
         };
         
+        console.log('Enviando payload:', payload);
+        
         try {
             const res = await fetch(BASE_URL, {
                 method: 'POST',
@@ -395,6 +435,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 body: JSON.stringify(payload)
             });
             const result = await res.json();
+            
+            console.log('Resposta do servidor:', result);
             
             if (confirmacaoModal) confirmacaoModal.hide();
             

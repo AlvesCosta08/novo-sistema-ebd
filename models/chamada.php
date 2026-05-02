@@ -5,7 +5,11 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // CORREÇÃO: caminho correto para o config
-require_once __DIR__ . '/../config/conexao.php';
+$caminhoConfig = __DIR__ . '/../config/conexao.php';
+if (!file_exists($caminhoConfig)) {
+    throw new Exception("Arquivo de configuração não encontrado: " . $caminhoConfig);
+}
+require_once $caminhoConfig;
 
 class Chamada {
     private $pdo;
@@ -21,9 +25,12 @@ class Chamada {
     public function padronizarTrimestre($trimestre, $ano = null) {
         if (empty($trimestre)) return null;
         
+        // Remove espaços em branco
+        $trimestre = trim($trimestre);
+        
         // Se já estiver no formato ANO-T (ex: 2026-T2), retorna como está
-        if (preg_match('/^\d{4}-T[1-4]$/', $trimestre)) {
-            return $trimestre;
+        if (preg_match('/^\d{4}-T[1-4]$/i', $trimestre)) {
+            return strtoupper($trimestre);
         }
         
         // Se for apenas o número do trimestre (1-4)
@@ -32,11 +39,15 @@ class Chamada {
             return $anoUsar . '-T' . $trimestre;
         }
         
-        // Se for formato '2026-T2' sem hífen ou com T minúsculo
-        if (preg_match('/^\d{4}[Tt][1-4]$/', $trimestre)) {
-            $ano = substr($trimestre, 0, 4);
-            $trim = strtoupper(substr($trimestre, -1));
-            return $ano . '-T' . $trim;
+        // Se for formato '2026T2' (sem hífen)
+        if (preg_match('/^(\d{4})[Tt]([1-4])$/', $trimestre, $matches)) {
+            return $matches[1] . '-T' . $matches[2];
+        }
+        
+        // Se for formato 'T2' ou 'T02'
+        if (preg_match('/^T?0?([1-4])$/i', $trimestre, $matches)) {
+            $anoUsar = $ano ?: date('Y');
+            return $anoUsar . '-T' . $matches[1];
         }
         
         return $trimestre;
@@ -44,11 +55,16 @@ class Chamada {
 
     // Método auxiliar para extrair número do trimestre
     public function extrairNumeroTrimestre($trimestre) {
-        if (preg_match('/-T([1-4])$/', $trimestre, $matches)) {
+        if (empty($trimestre)) return null;
+        
+        if (preg_match('/-T([1-4])$/i', $trimestre, $matches)) {
             return $matches[1];
         }
         if (preg_match('/^[1-4]$/', $trimestre)) {
             return $trimestre;
+        }
+        if (preg_match('/^(\d{4})[Tt]([1-4])$/', $trimestre, $matches)) {
+            return $matches[2];
         }
         return null;
     }
@@ -58,7 +74,9 @@ class Chamada {
         try {
             $query = "SELECT id, nome FROM congregacoes ORDER BY nome ASC";
             $stmt = $this->pdo->query($query);
-            return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            error_log("getCongregacoes: encontradas " . count($result) . " congregações");
+            return $result;
         } catch (PDOException $e) {
             error_log("Erro ao buscar congregações: " . $e->getMessage());
             return [];
@@ -79,7 +97,9 @@ class Chamada {
             $stmt->bindValue(':congregacao_id', $congregacao_id, PDO::PARAM_INT);
             $stmt->execute();
             
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("getClassesByCongregacao: encontradas " . count($result) . " classes para congregação " . $congregacao_id);
+            return $result;
         } catch (PDOException $e) {
             error_log("Erro ao buscar classes: " . $e->getMessage());
             return [];
@@ -89,7 +109,9 @@ class Chamada {
     // Método para obter os alunos de uma classe
     public function getAlunosByClasse($classe_id, $congregacao_id, $trimestre) {
         try {
-            // Primeiro tenta com o trimestre exato
+            error_log("getAlunosByClasse: classe=$classe_id, cong=$congregacao_id, trimestre=$trimestre");
+            
+            // Busca por correspondência exata de trimestre
             $query = "
                 SELECT DISTINCT a.id, a.nome
                 FROM alunos a
@@ -121,19 +143,28 @@ class Chamada {
                           AND m.congregacao_id = :congregacao_id
                           AND (m.trimestre = :numero 
                                OR m.trimestre LIKE CONCAT('%-T', :numero)
-                               OR m.trimestre LIKE CONCAT(:numero, '-T%'))
+                               OR m.trimestre = CONCAT(:ano, '-T', :numero))
                           AND m.status = 'ativo'
                         ORDER BY a.nome ASC
                     ";
+                    
+                    $ano = date('Y');
+                    if (preg_match('/^(\d{4})/', $trimestre, $matches)) {
+                        $ano = $matches[1];
+                    }
                     
                     $stmtFlex = $this->pdo->prepare($queryFlex);
                     $stmtFlex->bindValue(':classe_id', $classe_id, PDO::PARAM_INT);
                     $stmtFlex->bindValue(':congregacao_id', $congregacao_id, PDO::PARAM_INT);
                     $stmtFlex->bindValue(':numero', $numeroTrimestre, PDO::PARAM_STR);
+                    $stmtFlex->bindValue(':ano', $ano, PDO::PARAM_STR);
                     $stmtFlex->execute();
                     
                     $alunos = $stmtFlex->fetchAll(PDO::FETCH_ASSOC);
+                    error_log("getAlunosByClasse (flex): encontrados " . count($alunos) . " alunos");
                 }
+            } else {
+                error_log("getAlunosByClasse (exato): encontrados " . count($alunos) . " alunos");
             }
             
             return $alunos;
@@ -151,25 +182,27 @@ class Chamada {
             }
 
             $trimestrePadronizado = $this->padronizarTrimestre($trimestre);
+            error_log("registrarChamada: data=$data, trimestre=$trimestrePadronizado, classe=$classeId, professor=$professorId");
             
             // Busca o congregacao_id
             $stmtCong = $this->pdo->prepare("
                 SELECT congregacao_id FROM matriculas 
                 WHERE classe_id = :classe 
-                AND (trimestre = :tri OR trimestre = :tri_numero)
                 LIMIT 1
             ");
-            $numeroTrimestre = $this->extrairNumeroTrimestre($trimestrePadronizado);
-            $stmtCong->execute([
-                ':classe' => $classeId, 
-                ':tri' => $trimestrePadronizado,
-                ':tri_numero' => $numeroTrimestre
-            ]);
+            $stmtCong->execute([':classe' => $classeId]);
             
             $congregacaoId = $stmtCong->fetchColumn();
 
             if (!$congregacaoId) {
-                throw new Exception("Não foi possível identificar a congregação para esta classe neste trimestre. Verifique as matrículas.");
+                // Tenta buscar das classes
+                $stmtClasse = $this->pdo->prepare("SELECT congregacao_id FROM classes WHERE id = :classe");
+                $stmtClasse->execute([':classe' => $classeId]);
+                $congregacaoId = $stmtClasse->fetchColumn();
+            }
+
+            if (!$congregacaoId) {
+                throw new Exception("Não foi possível identificar a congregação para esta classe.");
             }
 
             $this->pdo->beginTransaction();
@@ -203,7 +236,10 @@ class Chamada {
                         throw new Exception("Dados do aluno incompletos.");
                     }
                     
-                    $statusPresenca = ($aluno['status'] === 'presente') ? 'presente' : 'ausente';
+                    $statusPresenca = $aluno['status'];
+                    if (!in_array($statusPresenca, ['presente', 'ausente', 'justificado'])) {
+                        $statusPresenca = 'ausente';
+                    }
                     
                     $stmtPresenca->execute([
                         ':chamada_id' => $chamadaId,
@@ -214,6 +250,7 @@ class Chamada {
             }
 
             $this->pdo->commit();
+            error_log("Chamada registrada com sucesso! ID: $chamadaId");
             return ['sucesso' => true, 'mensagem' => 'Chamada registrada com sucesso', 'chamada_id' => $chamadaId];
 
         } catch (Exception $e) {
@@ -379,7 +416,8 @@ class Chamada {
             ]);
 
             // Remove presenças antigas
-            $this->pdo->exec("DELETE FROM presencas WHERE chamada_id = " . (int)$chamadaId);
+            $stmtDel = $this->pdo->prepare("DELETE FROM presencas WHERE chamada_id = :id");
+            $stmtDel->execute([':id' => (int)$chamadaId]);
 
             if (!empty($alunos)) {
                 $sqlPresenca = "INSERT INTO presencas (chamada_id, aluno_id, presente) VALUES (:chamada_id, :aluno_id, :presente)";

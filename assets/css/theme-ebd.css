@@ -1,0 +1,410 @@
+/* assets/css/theme-ebd.css - Tema principal com psicologia das cores */
+
+:root {
+    /* Cores Primárias - Azul (Confiança, Segurança, Sabedoria) */
+    --primary-50: #eef2ff;
+    --primary-100: #e0e7ff;
+    --primary-200: #c7d2fe;
+    --primary-300: #a5b4fc;
+    --primary-400: #818cf8;
+    --primary-500: #4f46e5;
+    --primary-600: #3b2de2;  /* Cor principal - Confiança */
+    --primary-700: #312e81;
+    --primary-800: #1e1b4b;
+    --primary-900: #13122c;
+
+    /* Cores Secundárias - Verde (Esperança, Crescimento, Harmonia) */
+    --secondary-50: #ecfdf5;
+    --secondary-100: #d1fae5;
+    --secondary-200: #a7f3d0;
+    --secondary-300: #6ee7b7;
+    --secondary-400: #34d399;
+    --secondary-500: #10b981;
+    --secondary-600: #059669;  /* Cor secundária - Crescimento espiritual */
+    --secondary-700: #047857;
+    --secondary-800: #065f46;
+    --secondary-900: #064e3b;
+
+    /* Cores de Destaque - Dourado (Sabedoria, Fé, Glória Divina) */
+    --accent-50: #fffbeb;
+    --accent-100: #fef3c7;
+    --accent-200: #fde68a;
+    --accent-300: #fcd34d;
+    --accent-400: #fbbf24;
+    --accent-500: #f59e0b;
+    --accent-600: #d97706;  /* Cor de destaque - Sabedoria divina */
+    --accent-700: #b45309;
+    --accent-800: #92400e;
+    --accent-900: #78350f;
+
+    /* Neutros (Sóbrio, Elegante, Legível) */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    /* Cores de Estado */
+    --success: #059669;      /* Verde - Sucesso, aprovação */
+    --danger: #dc2626;       /* Vermelho - Atenção, erro */
+    --warning: #d97706;      /* Laranja - Alerta, cuidado */
+    --info: #3b82f6;         /* Azul - Informação */
+    
+    /* Gradientes */
+    --gradient-primary: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    --gradient-secondary: linear-gradient(135deg, var(--secondary-600) 0%, var(--secondary-700) 100%);
+    --gradient-accent: linear-gradient(135deg, var(--accent-600) 0%, var(--accent-700) 100%);
+    --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Reset e estilos base */
+body {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--gray-800);
+    min-height: 100vh;
+}
+
+/* Navbar personalizada */
+.navbar-primary {
+    background: var(--gradient-primary) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-bottom: 3px solid var(--accent-500);
+}
+
+.navbar-primary .navbar-brand {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.navbar-primary .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    margin: 0 2px;
+}
+
+.navbar-primary .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white !important;
+    transform: translateY(-1px);
+}
+
+.navbar-primary .nav-link.active {
+    background-color: var(--accent-500);
+    color: white !important;
+    font-weight: 600;
+}
+
+/* Cards modernos */
+.modern-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+}
+
+.modern-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transform: translateY(-2px);
+}
+
+.card-header-modern {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--gray-100);
+    font-weight: 600;
+}
+
+.card-header-modern.bg-primary {
+    background: var(--gradient-primary) !important;
+    color: white;
+}
+
+.card-header-modern.bg-success {
+    background: var(--gradient-secondary) !important;
+    color: white;
+}
+
+.card-header-modern.bg-info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+    color: white;
+}
+
+/* Botões modernos */
+.btn-modern {
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-modern::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-modern:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.btn-modern-primary {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+.btn-modern-secondary {
+    background: var(--gradient-secondary);
+    color: white;
+}
+
+.btn-modern-accent {
+    background: var(--gradient-accent);
+    color: white;
+}
+
+.btn-modern-success {
+    background: var(--gradient-secondary);
+    color: white;
+}
+
+/* Tabela personalizada */
+.custom-table {
+    width: 100%;
+    background: white;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.custom-table thead th {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+    color: var(--gray-700);
+    font-weight: 600;
+    padding: 16px;
+    border-bottom: 2px solid var(--gray-200);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.custom-table tbody tr {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.custom-table tbody tr:hover {
+    background: linear-gradient(90deg, var(--primary-50) 0%, white 100%);
+    transform: scale(1.01);
+}
+
+.custom-table tbody td {
+    padding: 14px 16px;
+    color: var(--gray-700);
+}
+
+/* Formulários */
+.form-control, .form-select {
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-200);
+    padding: 10px 14px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    outline: none;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+}
+
+/* Stats/Badges */
+.badge-ebd {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+.badge-primary {
+    background: var(--primary-100);
+    color: var(--primary-700);
+}
+
+.badge-success {
+    background: var(--secondary-100);
+    color: var(--secondary-700);
+}
+
+.badge-warning {
+    background: var(--accent-100);
+    color: var(--accent-700);
+}
+
+/* Alertas */
+.alert-ebd {
+    border-radius: 12px;
+    border-left: 4px solid;
+    padding: 16px 20px;
+}
+
+.alert-success-ebd {
+    background: linear-gradient(135deg, var(--secondary-50) 0%, white 100%);
+    border-left-color: var(--success);
+}
+
+.alert-warning-ebd {
+    background: linear-gradient(135deg, var(--accent-50) 0%, white 100%);
+    border-left-color: var(--warning);
+}
+
+.alert-info-ebd {
+    background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
+    border-left-color: var(--info);
+}
+
+/* Dashboard Stats */
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s ease;
+    border: 1px solid var(--gray-200);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 12px 0 4px;
+}
+
+.stat-label {
+    color: var(--gray-500);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* FAB Button */
+.fab-mobile {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.fab-mobile:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Animações */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fadeInUp {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* DataTables Custom */
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--gradient-primary) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--primary-500) !important;
+    border: none !important;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .modern-card {
+        border-radius: 12px;
+    }
+    
+    .btn-modern {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+    }
+}

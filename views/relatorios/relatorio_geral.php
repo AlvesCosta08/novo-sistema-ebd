@@ -1,6 +1,19 @@
 <?php
-require_once('../../config/conexao.php');
-require_once('../../views/includes/header.php');
+// Garantir que a sessão está ativa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Verificar se usuário está logado
+require_once __DIR__ . '/../../auth/valida_sessao.php';
+
+// Configurar título da página
+$pageTitle = 'Relatório Geral de Presenças';
+
+// Incluir header padronizado
+require_once __DIR__ . '/../includes/header.php';
+
+require_once __DIR__ . '/../../config/conexao.php';
 
 // Filtros
 $data_inicio = $_GET['data_inicio'] ?? date('Y-m-01');
@@ -92,285 +105,493 @@ $relatorios = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Congregações para filtro
 $congs = $pdo->query("SELECT id, nome FROM congregacoes ORDER BY nome")->fetchAll(PDO::FETCH_ASSOC);
+
+// Inicializar totais
+$total_geral_matriculados = 0;
+$total_geral_presencas = 0;
+$total_geral_faltas = 0;
+$total_geral_visitantes = 0;
+$total_geral_biblias = 0;
+$total_geral_revistas = 0;
+$total_geral_ofertas = 0;
+$total_chamadas_geral = 0;
+
+foreach ($relatorios as $row) {
+    $total_geral_matriculados += $row['total_matriculados'];
+    $total_geral_presencas += $row['total_presencas'];
+    $total_geral_faltas += $row['total_faltas'];
+    $total_geral_visitantes += $row['total_visitantes'];
+    $total_geral_biblias += $row['total_biblias'];
+    $total_geral_revistas += $row['total_revistas'];
+    $total_geral_ofertas += $row['total_ofertas'];
+    $total_chamadas_geral += ((int)$row['total_aulas']) * ((int)$row['total_matriculados']);
+}
+
+$presenca_visitante_geral = $total_geral_presencas + $total_geral_visitantes;
+$frequencia_geral = ($total_chamadas_geral > 0) ? ($presenca_visitante_geral / $total_chamadas_geral) * 100 : 0;
 ?>
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-
-<head>
-    <meta charset="UTF-8" />
-    <title>Relatório Geral</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-
-    <!-- DataTables + Buttons -->
-    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
-    <link href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css" rel="stylesheet" />
-    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet" />
-
-    <style>
-        .dataTables_wrapper .row {
-            width: 100% !important;
-        }
-
-        table.dataTable {
-            width: 100% !important;
-        }
-
-        .container {
-            max-width: 100% !important;
-        }
-
-        .table-responsive {
-            overflow-x: visible !important;
-        }
-    </style>
-</head>
-
-<body class="bg-light">
-
-    <div class="container my-4">
-        <h3 class="text-center mb-4">📊 Relatório Geral de Presenças</h3>
-
-        <!-- Filtros -->
-        <form class="row g-2 mb-4" method="get">
-            <div class="col-md-3">
-                <label for="data_inicio" class="form-label">Data Início</label>
-                <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="<?= htmlspecialchars($data_inicio) ?>" />
-            </div>
-            <div class="col-md-3">
-                <label for="data_fim" class="form-label">Data Fim</label>
-                <input type="date" class="form-control" id="data_fim" name="data_fim" value="<?= htmlspecialchars($data_fim) ?>" />
-            </div>
-            <div class="col-md-3">
-                <label for="congregacao_id" class="form-label">Congregação</label>
-                <select name="congregacao_id" id="congregacao_id" class="form-select">
-                    <option value="">Todas</option>
-                    <?php foreach ($congs as $c) : ?>
-                        <option value="<?= $c['id'] ?>" <?= ($congregacao_id == $c['id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($c['nome']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="trimestre" class="form-label">Trimestre</label>
-                <select name="trimestre" id="trimestre" class="form-select">
-                    <option value="">Todos</option>
-                    <?php for ($i = 1; $i <= 4; $i++) : ?>
-                        <option value="<?= $i ?>" <?= ($trimestre == $i) ? 'selected' : '' ?>><?= $i ?>º</option>
-                    <?php endfor; ?>
-                </select>
-            </div>
-            <div class="col-md-1 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-            </div>
-        </form>
-
-        <!-- Tabela -->
-        <div class="table-responsive">
-            <table id="tabela" class="table table-bordered table-striped table-hover nowrap w-100">
-                <thead class="table-dark text-center">
-                    <tr>
-                        <th>Classe</th>
-                        <th>Congregação</th>
-                        <th>Trimestre</th>
-                        <th>Matriculados</th>
-                        <th>Presentes</th>
-                        <th>Faltas</th>
-                        <th>Visitantes</th>
-                        <th>Bíblias</th>
-                        <th>Revistas</th>
-                        <th>Ofertas (R$)</th>
-                        <th>Frequência</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $total_geral_matriculados = 0;
-                    $total_geral_presencas = 0;
-                    $total_geral_faltas = 0;
-                    $total_geral_visitantes = 0;
-                    $total_geral_biblias = 0;
-                    $total_geral_revistas = 0;
-                    $total_geral_ofertas = 0;
-                    $total_geral_assistencia = 0;
-
-                    foreach ($relatorios as $row) :
-                        $total_geral_matriculados += $row['total_matriculados'];
-                        $total_geral_presencas += $row['total_presencas'];
-                        $total_geral_faltas += $row['total_faltas'];
-                        $total_geral_visitantes += $row['total_visitantes'];
-                        $total_geral_biblias += $row['total_biblias'];
-                        $total_geral_revistas += $row['total_revistas'];
-                        $total_geral_ofertas += $row['total_ofertas'];
-                        $total_geral_assistencia += $row['total_presencas'] + $row['total_visitantes'];
-
-                        $total_chamadas = (int)$row['total_aulas'];
-                        $total_matriculados = (int)$row['total_matriculados'];
-                        $presenca_visitante = (int)$row['total_presencas'] + (int)$row['total_visitantes'];
-
-                        if ($total_matriculados > 0 && $total_chamadas > 0) {
-                            $frequencia = ($presenca_visitante / ($total_matriculados * $total_chamadas)) * 100;
-                        } else {
-                            $frequencia = 0;
-                        }
-                    ?>
-                        <tr>
-                            <td><?= htmlspecialchars($row['classe_nome']) ?></td>
-                            <td><?= htmlspecialchars($row['congregacao_nome']) ?></td>
-                            <td class="text-center"><?= htmlspecialchars($row['trimestre']) ?></td>
-                            <td class="text-center"><?= $row['total_matriculados'] ?></td>
-                            <td class="text-center"><?= $row['total_presencas'] ?></td>
-                            <td class="text-center"><?= $row['total_faltas'] ?></td>
-                            <td class="text-center"><?= $row['total_visitantes'] ?></td>
-                            <td class="text-center"><?= $row['total_biblias'] ?></td>
-                            <td class="text-center"><?= $row['total_revistas'] ?></td>
-                            <td class="text-center"><?= number_format($row['total_ofertas'], 2, ',', '.') ?></td>
-                            <td class="text-center"><?= number_format($frequencia, 2, ',', '.') ?>%</td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-                <tfoot class="table-secondary fw-bold text-center">
-                    <tr>
-                        <td colspan="3" class="text-end">Totais Gerais:</td>
-                        <td><?= $total_geral_matriculados ?></td>
-                        <td><?= $total_geral_presencas ?></td>
-                        <td><?= $total_geral_faltas ?></td>
-                        <td><?= $total_geral_visitantes ?></td>
-                        <td><?= $total_geral_biblias ?></td>
-                        <td><?= $total_geral_revistas ?></td>
-                        <td><?= number_format($total_geral_ofertas, 2, ',', '.') ?></td>
-                        <td>
-                            <?php
-                            $frequencia_geral = 0;
-                            $presenca_visitante_geral = $total_geral_presencas + $total_geral_visitantes;
-                            $total_chamadas_geral = 0;
-
-                            // Para calcular a frequência geral corretamente, precisaríamos somar total_aulas ponderado.
-                            // Como total_aulas vem por classe, uma forma simples é pegar a média ponderada:
-
-                            foreach ($relatorios as $row) {
-                                $total_chamadas_geral += ((int)$row['total_aulas']) * ((int)$row['total_matriculados']);
-                            }
-
-                            if ($total_chamadas_geral > 0) {
-                                $frequencia_geral = ($presenca_visitante_geral / $total_chamadas_geral) * 100;
-                            }
-
-                            echo number_format($frequencia_geral, 2, ',', '.') . '%';
-                            ?>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
+<!-- Conteúdo principal -->
+<div class="container-fluid px-4">
+    <!-- Cabeçalho da Página -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" data-aos="fade-down">
+        <div>
+            <h1 class="display-5 fw-bold mb-2" style="color: var(--gray-800);">
+                <i class="fas fa-chart-line me-3" style="color: var(--primary-600);"></i>
+                Relatório Geral de Presenças
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: var(--primary-600);">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="index.php" style="color: var(--primary-600);">
+                            <i class="fas fa-chart-line me-1"></i> Relatórios
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-chart-simple me-1"></i> Geral
+                    </li>
+                </ol>
+            </nav>
+            <p class="text-muted mt-2 mb-0">
+                <i class="fas fa-info-circle me-1"></i>
+                Visão geral consolidada de presenças, recursos e frequência por classe
+            </p>
+        </div>
+        <div>
+            <button onclick="window.print()" class="btn btn-modern btn-outline-secondary">
+                <i class="fas fa-print me-2"></i> Imprimir
+            </button>
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Cards de Resumo Geral -->
+    <div class="row mb-4 g-4" data-aos="fade-up" data-aos-delay="100">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-value"><?= number_format($total_geral_matriculados) ?></div>
+                <div class="stat-label">Total Matrículas</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="stat-value"><?= number_format($total_geral_presencas) ?></div>
+                <div class="stat-label">Total Presenças</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+                    <i class="fas fa-user-times"></i>
+                </div>
+                <div class="stat-value"><?= number_format($total_geral_faltas) ?></div>
+                <div class="stat-label">Total Faltas</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info bg-opacity-10 text-info">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="stat-value"><?= number_format($total_geral_visitantes) ?></div>
+                <div class="stat-label">Visitantes</div>
+            </div>
+        </div>
+    </div>
 
-    <!-- DataTables + Buttons -->
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <div class="row mb-4 g-4" data-aos="fade-up" data-aos-delay="150">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                    <i class="fas fa-book"></i>
+                </div>
+                <div class="stat-value"><?= number_format($total_geral_biblias) ?></div>
+                <div class="stat-label">Bíblias</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-secondary bg-opacity-10 text-secondary">
+                    <i class="fas fa-magazine"></i>
+                </div>
+                <div class="stat-value"><?= number_format($total_geral_revistas) ?></div>
+                <div class="stat-label">Revistas</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="stat-value">R$ <?= number_format($total_geral_ofertas, 2, ',', '.') ?></div>
+                <div class="stat-label">Ofertas</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-value"><?= number_format($frequencia_geral, 1, ',', '.') ?>%</div>
+                <div class="stat-label">Frequência Geral</div>
+            </div>
+        </div>
+    </div>
 
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script> 
-// Renderizar variáveis em JavaScript para o PDF
-?>
+    <!-- Card de Filtros -->
+    <div class="modern-card mb-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="card-header-modern bg-primary">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-filter me-2"></i> Filtros de Pesquisa
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <form method="GET" class="row g-4">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-alt me-1 text-primary"></i> Data Início
+                    </label>
+                    <input type="date" class="form-control" name="data_inicio" value="<?= htmlspecialchars($data_inicio) ?>" />
+                </div>
+                
+                <div class="col-12 col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-check me-1 text-primary"></i> Data Fim
+                    </label>
+                    <input type="date" class="form-control" name="data_fim" value="<?= htmlspecialchars($data_fim) ?>" />
+                </div>
+                
+                <div class="col-12 col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-church me-1 text-primary"></i> Congregação
+                    </label>
+                    <select name="congregacao_id" class="form-select">
+                        <option value="">Todas as congregações</option>
+                        <?php foreach ($congs as $c) : ?>
+                            <option value="<?= $c['id'] ?>" <?= ($congregacao_id == $c['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($c['nome']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div class="col-12 col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-chart-line me-1 text-primary"></i> Trimestre
+                    </label>
+                    <select name="trimestre" class="form-select">
+                        <option value="">Todos os trimestres</option>
+                        <?php for ($i = 1; $i <= 4; $i++) : ?>
+                            <option value="<?= $i ?>" <?= ($trimestre == $i) ? 'selected' : '' ?>><?= $i ?>º Trimestre</option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                
+                <div class="col-12">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-modern btn-modern-primary">
+                            <i class="fas fa-search me-2"></i> Filtrar
+                        </button>
+                        <a href="relatorio_geral.php" class="btn btn-modern btn-outline-secondary">
+                            <i class="fas fa-eraser me-2"></i> Limpar Filtros
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Dados -->
+    <div class="modern-card" data-aos="fade-up" data-aos-delay="300">
+        <div class="card-header-modern bg-primary d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-table me-2"></i> Dados por Classe
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table id="tabelaGeral" class="custom-table mb-0" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Classe</th>
+                            <th>Congregação</th>
+                            <th class="text-center">Trimestre</th>
+                            <th class="text-center">Matriculados</th>
+                            <th class="text-center">Presentes</th>
+                            <th class="text-center">Faltas</th>
+                            <th class="text-center">Visitantes</th>
+                            <th class="text-center">Bíblias</th>
+                            <th class="text-center">Revistas</th>
+                            <th class="text-end">Ofertas (R$)</th>
+                            <th class="text-center">Frequência</th>
+                        </td>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($relatorios as $row):
+                            $total_chamadas = (int)$row['total_aulas'];
+                            $total_matriculados = (int)$row['total_matriculados'];
+                            $presenca_visitante = (int)$row['total_presencas'] + (int)$row['total_visitantes'];
+                            
+                            if ($total_matriculados > 0 && $total_chamadas > 0) {
+                                $frequencia = ($presenca_visitante / ($total_matriculados * $total_chamadas)) * 100;
+                            } else {
+                                $frequencia = 0;
+                            }
+                            
+                            // Cor da frequência
+                            $frequenciaCor = '';
+                            if ($frequencia >= 75) {
+                                $frequenciaCor = 'text-success';
+                            } elseif ($frequencia >= 50) {
+                                $frequenciaCor = 'text-warning';
+                            } else {
+                                $frequenciaCor = 'text-danger';
+                            }
+                        ?>
+                            <tr>
+                                <td><i class="fas fa-chalkboard-user me-2" style="color: var(--primary-500);"></i><?= htmlspecialchars($row['classe_nome']) ?></td>
+                                <td><i class="fas fa-church me-2" style="color: var(--primary-500);"></i><?= htmlspecialchars($row['congregacao_nome']) ?></td>
+                                <td class="text-center"><span class="badge-trimestre"><?= htmlspecialchars($row['trimestre']) ?>º Trim.</span></td>
+                                <td class="text-center fw-semibold"><?= number_format($row['total_matriculados']) ?></td>
+                                <td class="text-center fw-semibold text-success"><?= number_format($row['total_presencas']) ?></td>
+                                <td class="text-center fw-semibold text-danger"><?= number_format($row['total_faltas']) ?></td>
+                                <td class="text-center"><?= number_format($row['total_visitantes']) ?></td>
+                                <td class="text-center"><?= number_format($row['total_biblias']) ?></td>
+                                <td class="text-center"><?= number_format($row['total_revistas']) ?></td>
+                                <td class="text-end fw-bold text-success">R$ <?= number_format($row['total_ofertas'], 2, ',', '.') ?></td>
+                                <td class="text-center fw-bold <?= $frequenciaCor ?>"><?= number_format($frequencia, 1, ',', '.') ?>%</td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot class="table-footer">
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold">TOTAIS GERAIS:</td>
+                            <td class="text-center fw-bold bg-primary bg-opacity-10"><?= number_format($total_geral_matriculados) ?></td>
+                            <td class="text-center fw-bold bg-success bg-opacity-10 text-success"><?= number_format($total_geral_presencas) ?></td>
+                            <td class="text-center fw-bold bg-danger bg-opacity-10 text-danger"><?= number_format($total_geral_faltas) ?></td>
+                            <td class="text-center fw-bold bg-info bg-opacity-10"><?= number_format($total_geral_visitantes) ?></td>
+                            <td class="text-center fw-bold bg-warning bg-opacity-10"><?= number_format($total_geral_biblias) ?></td>
+                            <td class="text-center fw-bold bg-secondary bg-opacity-10"><?= number_format($total_geral_revistas) ?></td>
+                            <td class="text-end fw-bold bg-success bg-opacity-10 text-success">R$ <?= number_format($total_geral_ofertas, 2, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-primary bg-opacity-10"><?= number_format($frequencia_geral, 1, ',', '.') ?>%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dica de Análise -->
+    <div class="alert-ebd alert-info-ebd mt-4" data-aos="fade-up" data-aos-delay="350">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <i class="fas fa-chart-line fa-2x" style="color: var(--info);"></i>
+            <div class="flex-grow-1">
+                <strong class="d-block mb-1">Análise de Frequência:</strong>
+                <span>A frequência ideal é acima de 75%. Classes com baixa frequência merecem atenção especial. Utilize os filtros para analisar períodos específicos.</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos específicos para o relatório geral */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: var(--gray-500);
+}
+
+/* Badge de trimestre */
+.badge-trimestre {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* Rodapé da tabela */
+.table-footer {
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+    font-weight: 600;
+}
+
+.table-footer td {
+    border-top: 2px solid var(--gray-200);
+    padding: 1rem;
+}
+
+/* Alertas personalizados */
+.alert-info-ebd {
+    background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
+    border-left: 4px solid var(--info);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+/* DataTables personalizado */
+.dataTables_wrapper .dataTables_filter input {
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-200);
+    padding: 0.5rem 0.75rem;
+    margin-left: 0.5rem;
+}
+
+.dataTables_wrapper .dataTables_filter input:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.dataTables_wrapper .dataTables_length select {
+    border-radius: 10px;
+    border: 1.5px solid var(--gray-200);
+    padding: 0.25rem 0.5rem;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--gradient-primary) !important;
+    border: none !important;
+    color: white !important;
+}
+
+/* Print styles */
+@media print {
+    .navbar, .breadcrumb, .btn-modern, .alert-ebd, .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_paginate,
+    .card-header-modern .d-flex .btn {
+        display: none !important;
+    }
+    
+    body {
+        padding: 0;
+        margin: 0;
+    }
+    
+    .modern-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .stat-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .card-header-modern {
+        background: #2c3e50 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .display-5 {
+        font-size: 1.5rem;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .table-footer td {
+        font-size: 0.8rem;
+    }
+}
+</style>
+
 <script>
-// Renderizar variáveis PHP no JS para usar no rodapé do PDF
-const totaisGerais = {
-    matriculados: <?= $total_geral_matriculados ?>,
-    presencas: <?= $total_geral_presencas ?>,
-    faltas: <?= $total_geral_faltas ?>,
-    visitantes: <?= $total_geral_visitantes ?>,
-    biblias: <?= $total_geral_biblias ?>,
-    revistas: <?= $total_geral_revistas ?>,
-    ofertas: "<?= number_format($total_geral_ofertas, 2, ',', '.') ?>",
-    frequencia: "<?= number_format($frequencia_geral, 2, ',', '.') ?>%"
-};
-</script>
-
-<!-- DataTables e botões -->
-<script>
-$(document).ready(function () {
-    $('#tabela').DataTable({
-        responsive: true,
+$(document).ready(function() {
+    <?php if (!empty($relatorios)): ?>
+    var table = $('#tabelaGeral').DataTable({
         language: {
-            url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json"
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
         },
         dom: 'Bfrtip',
         buttons: [
             {
+                extend: 'excelHtml5',
+                text: '<i class="fas fa-file-excel me-1"></i> Excel',
+                className: 'btn-excel',
+                title: 'Relatorio_Geral_Presencas',
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] }
+            },
+            {
+                extend: 'csvHtml5',
+                text: '<i class="fas fa-file-csv me-1"></i> CSV',
+                className: 'btn-csv',
+                title: 'Relatorio_Geral_Presencas',
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] }
+            },
+            {
                 extend: 'pdfHtml5',
-                className: 'btn btn-danger btn-sm',
-                text: '📄 PDF',
+                text: '<i class="fas fa-file-pdf me-1"></i> PDF',
+                className: 'btn-pdf',
+                title: 'Relatorio_Geral_Presencas',
                 orientation: 'landscape',
                 pageSize: 'A4',
-                exportOptions: {
-                    columns: ':visible',
-                    footer: true
-                },
-                customize: function (doc) {
-                    doc.defaultStyle.fontSize = 8;
-                    doc.pageMargins = [10, 10, 10, 10];
-
-                    const table = doc.content[1].table;
-                    const body = table.body;
-
-                    // Define largura dinâmica das colunas
-                    const colCount = body[0].length;
-                    table.widths = Array(colCount).fill('*');
-
-                    // Alinhar e aplicar margem nas células das linhas de dados
-                    body.forEach(row => {
-                        row.forEach(cell => {
-                            if (typeof cell === 'object') {
-                                cell.alignment = 'center';
-                                cell.margin = [0, 5, 0, 5];
-                            }
-                        });
-                    });
-
-                    // Adiciona linha do rodapé (Totais Gerais)
-                    const rodapeTotais = [
-                        { text: 'Totais Gerais:', colSpan: 3, alignment: 'left', bold: true }, {}, {},
-                        { text: totaisGerais.matriculados, alignment: 'left', bold: true },
-                        { text: totaisGerais.presencas, alignment: 'left', bold: true },
-                        { text: totaisGerais.faltas, alignment: 'left', bold: true },
-                        { text: totaisGerais.visitantes, alignment: 'left', bold: true },
-                        { text: totaisGerais.biblias, alignment: 'left', bold: true },
-                        { text: totaisGerais.revistas, alignment: 'left', bold: true },
-                        { text: totaisGerais.ofertas, alignment: 'left', bold: true },
-                        { text: totaisGerais.frequencia, alignment: 'left', bold: true }
-                    ];
-
-                    body.push(rodapeTotais);
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] },
+                customize: function(doc) {
+                    doc.styles.tableHeader = {
+                        bold: true,
+                        fontSize: 10,
+                        color: 'white',
+                        fillColor: '#3b82f6',
+                        alignment: 'center'
+                    };
+                    doc.defaultStyle.fontSize = 9;
                 }
             },
             {
                 extend: 'print',
-                className: 'btn btn-secondary btn-sm',
-                text: '🖨️ Imprimir'
+                text: '<i class="fas fa-print me-1"></i> Imprimir',
+                className: 'btn-print',
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] }
             }
-        ]
+        ],
+        order: [[0, 'asc']],
+        pageLength: 10,
+        lengthMenu: [5, 10, 25, 50, 100],
+        responsive: true,
+        drawCallback: function() {
+            $('.dataTables_paginate').addClass('mt-3');
+        }
     });
+    
+    // Estilizar os botões do DataTable
+    $('.dt-buttons').addClass('d-flex gap-2 mb-3');
+    $('.buttons-excel').addClass('btn-modern').css({'background': '#27ae60', 'color': 'white', 'border': 'none'});
+    $('.buttons-csv').addClass('btn-modern').css({'background': '#3498db', 'color': 'white', 'border': 'none'});
+    $('.buttons-pdf').addClass('btn-modern').css({'background': '#e74c3c', 'color': 'white', 'border': 'none'});
+    $('.buttons-print').addClass('btn-modern').css({'background': '#7f8c8d', 'color': 'white', 'border': 'none'});
+    
+    // Mover botões para o local desejado
+    $('.dt-buttons').appendTo('.card-header-modern .d-flex');
+    <?php endif; ?>
+    
+    // Inicializar AOS
+    if (typeof AOS !== 'undefined') {
+        AOS.init({
+            duration: 600,
+            once: true,
+            offset: 50
+        });
+    }
 });
 </script>
 
-
-</body>
-
-</html>
+<?php
+// Incluir footer
+require_once __DIR__ . '/../includes/footer.php';
+?>

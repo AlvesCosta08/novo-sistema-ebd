@@ -1,4 +1,4 @@
-// chamada.js - Lógica do frontend de chamadas (versão moderna)
+// chamada.js - Lógica do frontend de chamadas (versão corrigida)
 
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos da interface
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingSalvarSpinner = document.getElementById('loadingSalvar');
     const alertContainer = document.getElementById('alertContainer');
     const dataChamada = document.getElementById('dataChamada');
-    const professorId = document.getElementById('professorId').value;
+    const professorId = document.getElementById('professorId')?.value;
 
     // Configura data atual como padrão
     if (dataChamada && !dataChamada.value) {
@@ -102,7 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
             overlay = document.createElement('div');
             overlay.id = 'globalLoading';
             overlay.className = 'loading-overlay';
-            overlay.innerHTML = '<div class="spinner-custom"></div>';
+            overlay.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
             document.body.appendChild(overlay);
         }
         overlay.style.display = 'flex';
@@ -117,18 +118,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Função para exibir alerta
     function exibirAlerta(mensagem, tipo) {
-        if (!alertContainer) return;
+        // Criar container de alerta se não existir
+        let alertContainerElem = alertContainer;
+        if (!alertContainerElem) {
+            alertContainerElem = document.createElement('div');
+            alertContainerElem.id = 'alertContainer';
+            alertContainerElem.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            document.body.appendChild(alertContainerElem);
+        }
         
         const alerta = document.createElement('div');
         alerta.className = `alert alert-${tipo} alert-dismissible fade show`;
         alerta.setAttribute('role', 'alert');
+        alerta.style.cssText = 'margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 12px;';
         alerta.innerHTML = `
-            <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-            ${mensagem}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2 fa-lg"></i>
+                <span class="flex-grow-1">${mensagem}</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
         `;
-        alertContainer.innerHTML = '';
-        alertContainer.appendChild(alerta);
+        alertContainerElem.appendChild(alerta);
         
         setTimeout(() => {
             if (alerta.parentNode) {
@@ -222,7 +232,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function limparAlunos() {
         if (tabelaAlunos) {
-            tabelaAlunos.innerHTML = '';
+            tabelaAlunos.innerHTML = `
+                <td>
+                    <td colspan="3" class="text-center py-5">
+                        <i class="fas fa-users-slash fa-3x mb-3 d-block" style="color: var(--gray-400);"></i>
+                        <p class="text-muted mb-0">Nenhum aluno carregado.<br>Selecione uma classe e clique em "Carregar Alunos".</p>
+                    </td>
+                </tr>
+            `;
         }
         if (containerAlunos) {
             containerAlunos.classList.add('d-none');
@@ -273,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <i class="fas fa-users-slash fa-2x mb-2 d-block"></i>
                                     Nenhum aluno matriculado neste período.
                                 </td>
-                            <tr>
+                            </tr>
                         `;
                     }
                     if (containerAlunos) {
@@ -311,30 +328,31 @@ document.addEventListener('DOMContentLoaded', function() {
         
         alunos.forEach((aluno, index) => {
             const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--gray-200)';
             tr.innerHTML = `
-                <td class="text-center" style="width: 50px">
+                <td class="text-center" style="width: 50px; vertical-align: middle;">
                     <span class="badge bg-secondary rounded-pill">${index + 1}</span>
-                </td>
-                <td>
+                 </td>
+                <td style="vertical-align: middle;">
                     <i class="fas fa-user-graduate text-primary me-2"></i>
-                    ${escapeHtml(aluno.nome)}
-                </td>
-                <td>
-                    <div class="radio-group">
-                        <label class="radio-option">
+                    <span class="fw-medium">${escapeHtml(aluno.nome)}</span>
+                 </td>
+                <td style="vertical-align: middle;">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <label class="radio-option d-inline-flex align-items-center gap-1">
                             <input type="radio" name="status_${aluno.id}" value="presente" class="form-check-input" checked>
-                            <span class="badge badge-presente">Presente</span>
+                            <span class="badge bg-success">Presente</span>
                         </label>
-                        <label class="radio-option">
+                        <label class="radio-option d-inline-flex align-items-center gap-1">
                             <input type="radio" name="status_${aluno.id}" value="ausente" class="form-check-input">
-                            <span class="badge badge-ausente">Ausente</span>
+                            <span class="badge bg-danger">Ausente</span>
                         </label>
-                        <label class="radio-option">
+                        <label class="radio-option d-inline-flex align-items-center gap-1">
                             <input type="radio" name="status_${aluno.id}" value="justificado" class="form-check-input">
-                            <span class="badge badge-justificado">Justificado</span>
+                            <span class="badge bg-warning text-dark">Justificado</span>
                         </label>
                     </div>
-                </td>
+                 </td>
             `;
             tabelaAlunos.appendChild(tr);
         });
@@ -345,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
         radios.forEach(radio => {
             radio.checked = true;
         });
-        exibirAlerta('Todos os alunos marcados como presentes.', 'info');
+        exibirAlerta('Todos os alunos marcados como presentes.', 'success');
     }
 
     function limparTodosStatus() {
@@ -358,23 +376,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function coletarDadosAlunos() {
         const alunos = [];
-        const radios = document.querySelectorAll('#tabelaAlunos input[type="radio"]:checked');
-        radios.forEach(radio => {
-            const name = radio.name;
-            const alunoId = name.split('_')[1];
-            const status = radio.value;
-            alunos.push({ id: parseInt(alunoId), status: status });
+        const alunosIds = new Set(); // Para evitar duplicatas
+        
+        document.querySelectorAll('#tabelaAlunos tr').forEach(row => {
+            const radioChecked = row.querySelector('input[type="radio"]:checked');
+            if (radioChecked) {
+                const name = radioChecked.name;
+                const alunoId = name.split('_')[1];
+                const status = radioChecked.value;
+                
+                if (alunoId && !alunosIds.has(alunoId)) {
+                    alunosIds.add(alunoId);
+                    alunos.push({ id: parseInt(alunoId), status: status });
+                }
+            }
         });
+        
         return alunos;
     }
 
+    // FUNÇÃO CORRIGIDA - Verificar chamada existente
     async function verificarChamadaExistente() {
         const congregacaoId = congregacaoSelect?.value;
         const classeId = classeSelect?.value;
         const data = dataChamada?.value;
         
-        if (!congregacaoId || !classeId) {
-            exibirAlerta('Selecione congregação e classe.', 'warning');
+        // Validações
+        if (!congregacaoId) {
+            exibirAlerta('Selecione uma congregação.', 'warning');
+            return;
+        }
+        
+        if (!classeId) {
+            exibirAlerta('Selecione uma classe.', 'warning');
             return;
         }
         
@@ -386,44 +420,55 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading();
         
         try {
+            console.log('Verificando chamada para:', { data, classeId, congregacaoId });
+            
             const response = await fetch(BASE_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     acao: 'verificarChamadaExistente',
                     data: data,
-                    classe_id: parseInt(classeId)
+                    classe_id: parseInt(classeId),
+                    congregacao_id: parseInt(congregacaoId)
                 })
             });
+            
             const result = await response.json();
+            console.log('Resposta da verificação:', result);
             
             const alertDiv = document.getElementById('chamadaExistenteAlert');
             const msgSpan = document.getElementById('chamadaExistenteMsg');
             
             if (alertDiv && msgSpan) {
-                if (result.status === 'success' && result.data?.existe) {
-                    msgSpan.innerHTML = `Já existe uma chamada para esta data (${formatarData(data)}) na classe selecionada.`;
+                if (result.status === 'success' && result.data?.existe === true) {
+                    // Chamada existe
+                    const dataFormatada = formatarData(data);
+                    msgSpan.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Já existe uma chamada para ${dataFormatada} na classe selecionada.`;
                     alertDiv.classList.remove('d-none');
                     
                     const btnEditar = document.getElementById('btnEditarExistente');
-                    if (btnEditar) {
+                    if (btnEditar && result.data.chamada) {
                         btnEditar.onclick = () => {
                             window.location.href = `editar.php?id=${result.data.chamada.id}`;
                         };
                     }
-                } else if (result.status === 'success' && !result.data?.existe) {
-                    msgSpan.innerHTML = `Nenhuma chamada encontrada para esta data. Você pode registrar uma nova.`;
+                } else if (result.status === 'success' && result.data?.existe === false) {
+                    // Chamada não existe
+                    msgSpan.innerHTML = `<i class="fas fa-check-circle me-2"></i> Nenhuma chamada encontrada para esta data. Você pode registrar uma nova.`;
                     alertDiv.classList.remove('d-none');
                     setTimeout(() => {
                         alertDiv.classList.add('d-none');
                     }, 3000);
                 } else {
-                    exibirAlerta('Erro ao verificar chamada: ' + (result.message || 'Erro desconhecido'), 'danger');
+                    exibirAlerta('Erro ao verificar: ' + (result.message || 'Erro desconhecido'), 'danger');
                 }
+            } else {
+                console.error('Elementos de alerta não encontrados');
+                exibirAlerta('Erro ao verificar chamada existente.', 'danger');
             }
         } catch (error) {
-            exibirAlerta('Erro ao verificar chamada existente.', 'danger');
-            console.error(error);
+            console.error('Erro na verificação:', error);
+            exibirAlerta('Erro de conexão ao verificar chamada existente.', 'danger');
         } finally {
             hideLoading();
         }
@@ -443,22 +488,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const alunos = coletarDadosAlunos();
 
         // Validações iniciais
-        if (!congregacaoId || !classeId) {
-            exibirAlerta('Selecione congregação e classe.', 'warning');
+        if (!congregacaoId) {
+            exibirAlerta('Selecione uma congregação.', 'warning');
             return;
         }
+        
+        if (!classeId) {
+            exibirAlerta('Selecione uma classe.', 'warning');
+            return;
+        }
+        
         if (!data) {
             exibirAlerta('Informe a data da aula.', 'warning');
             return;
         }
         
-        // Verifica se há alunos na tabela (não apenas se foram coletados)
+        // Verifica se há alunos na tabela
         const tabelaBody = document.getElementById('tabelaAlunos');
-        const temLinhas = tabelaBody && tabelaBody.querySelectorAll('tr').length > 0;
+        const temAlunos = tabelaBody && tabelaBody.querySelectorAll('tr').length > 0;
         const temMensagemVazia = tabelaBody && tabelaBody.querySelector('td[colspan="3"]');
         
-        if (!temLinhas || temMensagemVazia || alunos.length === 0) {
+        if (!temAlunos || temMensagemVazia) {
             exibirAlerta('Nenhum aluno carregado. Selecione uma classe e clique em "Carregar Alunos".', 'warning');
+            return;
+        }
+        
+        if (alunos.length === 0) {
+            exibirAlerta('Nenhum aluno foi selecionado. Marque a presença de pelo menos um aluno.', 'warning');
             return;
         }
 
@@ -509,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (bibliasInput) bibliasInput.value = '0';
                 if (revistasInput) revistasInput.value = '0';
                 
-                // SÓ AQUI pergunta se quer registrar outra chamada (após sucesso)
+                // Pergunta se quer registrar outra chamada
                 setTimeout(() => {
                     const registrarOutra = confirm('✅ Chamada salva com sucesso!\n\nDeseja registrar outra chamada para esta mesma turma?');
                     if (registrarOutra) {
@@ -532,8 +588,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 exibirAlerta('Erro: ' + (result.message || 'Falha ao salvar chamada.'), 'danger');
             }
         } catch (error) {
+            console.error('Erro ao salvar:', error);
             exibirAlerta('Erro de conexão ao salvar.', 'danger');
-            console.error(error);
         } finally {
             if (loadingSalvarSpinner) {
                 loadingSalvarSpinner.classList.add('d-none');

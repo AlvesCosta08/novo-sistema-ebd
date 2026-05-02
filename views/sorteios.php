@@ -1,300 +1,375 @@
 <?php  
-require_once '../config/conexao.php';
-require_once '../auth/valida_sessao.php';
-require_once '../functions/funcoes_chamadas.php';
+// Garantir que a sessão está ativa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Verificar se usuário está logado
+require_once __DIR__ . '/../auth/valida_sessao.php';
+
+// Configurar título da página
+$pageTitle = 'Chamada e Sorteio';
+
+// Incluir header padronizado
+require_once __DIR__ . '/../includes/header.php';
+
+require_once __DIR__ . '/../config/conexao.php';
+require_once __DIR__ . '/../functions/funcoes_chamadas.php';
 
 $estatisticas = obterEstatisticasChamadasMensais($pdo);
 ?>
 
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Escola Bíblica - Chamada e Sorteio</title>
-  
-  <!-- Bootstrap + Font Awesome -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
-  <link rel="icon" href="../assets/images/biblia.png" type="image/x-icon">
-
-  <style>
-    body {
-      background: #fdfdfd;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      padding-top: 68px;
-    }
-    
-    .navbar {
-      background: #ffffff;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    }
-
-    .navbar-brand {
-      font-weight: bold;
-      color: #4a90e2 !important;
-    }
-
-    .nav-link {
-      font-weight: 500;
-      color: #333 !important;
-    }
-
-    .nav-link:hover {
-      color: #4a90e2 !important;
-    }
-
-    .hero {
-      background: url('../assets/images/fundo_ebd.jpg') center center / cover no-repeat;
-      color: white;
-      padding: 100px 0;
-      text-align: center;
-      position: relative;
-    }
-
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 0;
-    }
-
-    .hero .container {
-      position: relative;
-      z-index: 1;
-    }
-
-    .card {
-      border: none;
-      border-radius: 1rem;
-      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.07);
-      transition: all 0.3s ease;
-    }
-
-    .card:hover {
-      transform: scale(1.02);
-    }
-
-    .btn-primary {
-      background-color: #ff416c;
-      border: none;
-      font-weight: bold;
-    }
-
-    .sorteio-container {
-      display: none;
-      margin-top: 30px;
-    }
-    
-    .sorteio-animacao {
-      font-size: 24px;
-      font-weight: bold;
-      color: #ff416c;
-      height: 100px;
-      overflow: hidden;
-    }
-    
-    .sorteio-resultado {
-      font-size: 28px;
-      font-weight: bold;
-      text-align: center;
-      margin: 20px 0;
-      padding: 15px;
-      background: #f8f9fa;
-      border-radius: 10px;
-      display: none;
-    }
-    
-    .ganhador-destaque {
-      animation: pulse 1.5s infinite;
-      color: #28a745;
-    }
-    
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-    
-    .lista-ganhadores {
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    
-    .tab-content {
-      padding: 20px 0;
-    }
-    
-    .nav-tabs .nav-link.active {
-      font-weight: bold;
-      color: #ff416c !important;
-      border-bottom: 3px solid #ff416c;
-    }
-    
-    @keyframes flash {
-      0%, 50%, 100% { opacity: 1; }
-      25%, 75% { opacity: 0.5; }
-    }
-
-    .animate__flash {
-      animation: flash 0.3s infinite;
-    }
-    
-    .aluno-item {
-      cursor: pointer;
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-      transition: background-color 0.2s;
-    }
-    
-    .aluno-item:hover {
-      background-color: #f8f9fa;
-    }
-    
-    .aluno-item.selected {
-      background-color: #e2f3ff;
-    }
-    
-    #alunosLista {
-      max-height: 400px;
-      overflow-y: auto;
-      margin-bottom: 20px;
-    }
-    
-    .select-all-container {
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-      background-color: #f8f9fa;
-      margin-bottom: 10px;
-    }
-  </style>
-</head>
-<body>
-
-<!-- Navbar CORRIGIDA (PATH_BASE removido) -->
-<nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm fixed-top">
-  <div class="container">
-    <a class="navbar-brand d-flex align-items-center" href="dashboard.php">
-      <img src="../assets/images/biblia.png" alt="Logo EBD" style="height: 40px; margin-right: 10px;">
-      <span>Escola Bíblica</span>
-    </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item"><a class="nav-link active" href="dashboard.php">Dashboard</a></li>
-        <li class="nav-item"><a class="nav-link" href="./alunos/index.php">Alunos</a></li>
-        <li class="nav-item"><a class="nav-link" href="./classes/index.php">Classes</a></li>
-        <li class="nav-item"><a class="nav-link" href="./professores/index.php">Professores</a></li>
-        <li class="nav-item"><a class="nav-link" href="./congregacao/index.php">Congregações</a></li>
-        <li class="nav-item"><a class="nav-link" href="./matriculas/index.php">Matriculas</a></li>
-        <li class="nav-item"><a class="nav-link" href="./usuario/index.php">Usuários</a></li>
-        <li class="nav-item"><a class="nav-link" href="./relatorios/index.php">Relatórios</a></li>
-        <li class="nav-item">
-          <a class="nav-link" href="../auth/logout.php"><i class="fas fa-sign-out-alt"></i></a>
-        </li>
-      </ul>
-    </div>
-  </div>
-</nav>
-
-<div class="container mt-5">
-    <ul class="nav nav-tabs" id="myTab" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="sorteio-tab" data-bs-toggle="tab" data-bs-target="#sorteio" type="button" role="tab">Realizar Sorteio</button>
-      </li>
-    </ul>
-    
-    <div class="tab-content" id="myTabContent">
-      <div class="tab-pane fade show active" id="sorteio" role="tabpanel">
-        <div class="card shadow-lg">
-          <div class="card-header bg-success text-white">
-            <h4><i class="fas fa-gift me-2"></i>Sorteio</h4>
-          </div>
-          <div class="card-body">
-            <form id="formSorteio">
-              <div class="row mb-4">
-                  <div class="col-md-4">
-                      <label for="sorteio_congregacao" class="form-label">Congregação</label>
-                      <select class="form-select" id="sorteio_congregacao" required>
-                          <option value="">Selecione a Congregação</option>
-                      </select>
-                  </div>
-                  <div class="col-md-4">
-                      <label for="sorteio_classe" class="form-label">Classe</label>
-                      <select class="form-select" id="sorteio_classe" required disabled>
-                          <option value="">Selecione a Classe</option>
-                      </select>
-                  </div>
-                  <div class="col-md-4">
-                      <label for="sorteio_trimestre" class="form-label">Trimestre</label>
-                      <select class="form-select" id="sorteio_trimestre" required>
-                          <option value="">Selecione o Trimestre</option>
-                          <option value="1">1º Trimestre</option>
-                          <option value="2">2º Trimestre</option>
-                          <option value="3">3º Trimestre</option>
-                          <option value="4">4º Trimestre</option>
-                      </select>
-                  </div>
-              </div>
-              
-              <div id="alunosContainer" style="display: none;">
-                <div class="select-all-container">
-                  <button type="button" id="btnSelecionarTodos" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-check-circle me-1"></i> Selecionar Todos
-                  </button>
-                  <button type="button" id="btnDesmarcarTodos" class="btn btn-sm btn-outline-secondary ms-2">
-                    <i class="fas fa-times-circle me-1"></i> Desmarcar Todos
-                  </button>
-                  <span id="contadorSelecionados" class="badge bg-primary ms-2">0 selecionados</span>
-                </div>
-                
-                <h5 class="mb-3">Alunos da Classe</h5>
-                <div id="alunosLista" class="border rounded p-2"></div>
-                
-                <div class="text-center mt-3">
-                  <button type="button" id="btnRealizarSorteio" class="btn btn-success btn-lg">
-                    <i class="fas fa-random me-2"></i>Realizar Sorteio
-                  </button>
-                </div>
-              </div>
-              
-              <div id="sorteioResultados" class="mt-4" style="display: none;">
-                <h5 class="text-center mb-3">Resultado do Sorteio</h5>
-                
-                <div class="sorteio-animacao text-center mb-3" id="animacaoSorteio"></div>
-                
-                <div class="sorteio-resultado" id="resultadoSorteio">
-                  <div class="ganhador-destaque" id="ganhadorNome"></div>
-                  <div id="ganhadorDetalhes"></div>
-                </div>
-                
-                <div class="card mt-3">
-                  <div class="card-header">
-                    <h6>Critérios do Sorteio</h6>
-                  </div>
-                  <div class="card-body">
-                    <p>Foram considerados todos os alunos presentes na lista acima.</p>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </div>
+<!-- Conteúdo principal -->
+<div class="container-fluid px-4">
+    <!-- Cabeçalho da Página -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" data-aos="fade-down">
+        <div>
+            <h1 class="display-5 fw-bold mb-2" style="color: var(--gray-800);">
+                <i class="fas fa-gift me-3" style="color: var(--success);"></i>
+                Sorteio de Brindes
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: var(--primary-600);">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-random me-1"></i> Sorteio
+                    </li>
+                </ol>
+            </nav>
+            <p class="text-muted mt-2 mb-0">
+                <i class="fas fa-info-circle me-1"></i>
+                Realize sorteios entre os alunos presentes nas classes, selecionando os participantes
+            </p>
         </div>
-      </div>
+        <div>
+            <div class="dropdown">
+                <button class="btn btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-user-circle me-1"></i> <?= htmlspecialchars($_SESSION['nome'] ?? 'Usuário') ?>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                    <li><a class="dropdown-item" href="../auth/logout.php"><i class="fas fa-sign-out-alt me-2 text-danger"></i> Sair</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Principal - Sorteio -->
+    <div class="modern-card" data-aos="fade-up" data-aos-delay="100">
+        <div class="card-header-modern" style="background: linear-gradient(135deg, var(--success) 0%, #059669 100%);">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-random me-2"></i> Realizar Sorteio
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <form id="formSorteio">
+                <div class="row g-4 mb-4">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-church me-1 text-primary"></i> Congregação
+                        </label>
+                        <select class="form-select" id="sorteio_congregacao" required>
+                            <option value="">Selecione a Congregação</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-chalkboard-user me-1 text-primary"></i> Classe
+                        </label>
+                        <select class="form-select" id="sorteio_classe" required disabled>
+                            <option value="">Selecione a Classe</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            <i class="fas fa-chart-line me-1 text-primary"></i> Trimestre
+                        </label>
+                        <select class="form-select" id="sorteio_trimestre" required>
+                            <option value="">Selecione o Trimestre</option>
+                            <option value="1">1º Trimestre</option>
+                            <option value="2">2º Trimestre</option>
+                            <option value="3">3º Trimestre</option>
+                            <option value="4">4º Trimestre</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Container de Alunos -->
+                <div id="alunosContainer" style="display: none;">
+                    <div class="select-all-toolbar mb-3">
+                        <button type="button" id="btnSelecionarTodos" class="btn btn-modern btn-modern-primary btn-sm">
+                            <i class="fas fa-check-circle me-1"></i> Selecionar Todos
+                        </button>
+                        <button type="button" id="btnDesmarcarTodos" class="btn btn-modern btn-outline-secondary btn-sm ms-2">
+                            <i class="fas fa-times-circle me-1"></i> Desmarcar Todos
+                        </button>
+                        <span id="contadorSelecionados" class="badge-ebd badge-primary ms-2">0 selecionados</span>
+                    </div>
+                    
+                    <div class="alunos-list-container">
+                        <h6 class="mb-3 fw-semibold">
+                            <i class="fas fa-users me-2 text-primary"></i> Alunos da Classe
+                        </h6>
+                        <div id="alunosLista" class="alunos-list border rounded-3 p-2"></div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="button" id="btnRealizarSorteio" class="btn btn-modern btn-modern-success btn-lg px-5">
+                            <i class="fas fa-random me-2"></i> Realizar Sorteio
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Resultado do Sorteio -->
+                <div id="sorteioResultados" class="mt-4" style="display: none;">
+                    <div class="winner-card text-center">
+                        <div class="sorteio-animacao" id="animacaoSorteio"></div>
+                        <div class="winner-info" id="resultadoSorteio">
+                            <div class="winner-name" id="ganhadorNome"></div>
+                            <div class="winner-details" id="ganhadorDetalhes"></div>
+                        </div>
+                        <div class="winner-celebration" style="display: none;">
+                            <i class="fas fa-trophy fa-3x text-warning"></i>
+                            <i class="fas fa-star fa-2x text-warning"></i>
+                            <i class="fas fa-crown fa-3x text-warning"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card mt-3">
+                        <div class="d-flex align-items-center gap-2 text-muted small">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Foram considerados todos os alunos selecionados na lista acima.</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estatísticas do Mês -->
+    <?php if (!empty($estatisticas)): ?>
+    <div class="modern-card mt-4" data-aos="fade-up" data-aos-delay="200">
+        <div class="card-header-modern bg-primary">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-chart-bar me-2"></i> Estatísticas do Mês
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-6 col-md-3 text-center">
+                    <div class="stat-circle bg-primary bg-opacity-10">
+                        <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                    </div>
+                    <h3 class="mt-2 mb-0"><?= $estatisticas['total_chamadas'] ?? 0 ?></h3>
+                    <small class="text-muted">Chamadas Realizadas</small>
+                </div>
+                <div class="col-6 col-md-3 text-center">
+                    <div class="stat-circle bg-success bg-opacity-10">
+                        <i class="fas fa-user-check fa-2x text-success"></i>
+                    </div>
+                    <h3 class="mt-2 mb-0"><?= $estatisticas['total_presencas'] ?? 0 ?></h3>
+                    <small class="text-muted">Presenças</small>
+                </div>
+                <div class="col-6 col-md-3 text-center">
+                    <div class="stat-circle bg-warning bg-opacity-10">
+                        <i class="fas fa-chart-line fa-2x text-warning"></i>
+                    </div>
+                    <h3 class="mt-2 mb-0"><?= $estatisticas['media_frequencia'] ?? 0 ?>%</h3>
+                    <small class="text-muted">Média de Frequência</small>
+                </div>
+                <div class="col-6 col-md-3 text-center">
+                    <div class="stat-circle bg-info bg-opacity-10">
+                        <i class="fas fa-dollar-sign fa-2x text-info"></i>
+                    </div>
+                    <h3 class="mt-2 mb-0">R$ <?= number_format($estatisticas['total_ofertas'] ?? 0, 2, ',', '.') ?></h3>
+                    <small class="text-muted">Ofertas do Mês</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Dica de Utilização -->
+    <div class="alert-ebd alert-info-ebd mt-4" data-aos="fade-up" data-aos-delay="300">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <i class="fas fa-lightbulb fa-2x" style="color: var(--info);"></i>
+            <div class="flex-grow-1">
+                <strong class="d-block mb-1">Dica:</strong>
+                <span>Selecione os alunos participantes do sorteio e clique no botão "Realizar Sorteio". O sistema escolherá um ganhador aleatoriamente entre os selecionados.</span>
+            </div>
+        </div>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+/* Estilos específicos para o sorteio */
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+    color: var(--gray-500);
+}
 
+.alunos-list {
+    max-height: 400px;
+    overflow-y: auto;
+    background: white;
+}
+
+.aluno-item {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    margin: 0 2px;
+}
+
+.aluno-item:hover {
+    background-color: var(--gray-50);
+    transform: translateX(4px);
+}
+
+.aluno-item.selected {
+    background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
+    border-left: 3px solid var(--primary-600);
+}
+
+.aluno-item .fa-user-check {
+    color: var(--success);
+    font-size: 1.1rem;
+}
+
+/* Select all toolbar */
+.select-all-toolbar {
+    background: var(--gray-50);
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Winner card */
+.winner-card {
+    background: linear-gradient(135deg, var(--accent-50) 0%, white 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    border: 2px solid var(--accent-200);
+    animation: winnerGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes winnerGlow {
+    from { box-shadow: 0 0 10px rgba(245, 158, 11, 0.2); }
+    to { box-shadow: 0 0 30px rgba(245, 158, 11, 0.6); }
+}
+
+.winner-name {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--warning);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.winner-details {
+    font-size: 0.9rem;
+    color: var(--gray-600);
+}
+
+.sorteio-animacao {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--warning);
+    margin-bottom: 1rem;
+}
+
+/* Info card */
+.info-card {
+    background: var(--gray-50);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+}
+
+/* Stat circle */
+.stat-circle {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.animate-pulse {
+    animation: pulse 0.5s ease-in-out;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .display-5 {
+        font-size: 1.5rem;
+    }
+    
+    .winner-name {
+        font-size: 1.2rem;
+    }
+    
+    .stat-circle {
+        width: 55px;
+        height: 55px;
+    }
+    
+    .stat-circle i {
+        font-size: 1.5rem !important;
+    }
+    
+    .select-all-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .select-all-toolbar .btn {
+        width: 100%;
+    }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
+    // Inicializar AOS
+    if (typeof AOS !== 'undefined') {
+        AOS.init({
+            duration: 600,
+            once: true,
+            offset: 50
+        });
+    }
+    
+    function exibirMensagem(tipo, titulo, mensagem) {
+        Swal.fire({
+            icon: tipo,
+            title: titulo,
+            text: mensagem,
+            confirmButtonColor: tipo === 'success' ? '#10b981' : '#ef4444'
+        });
+    }
+
     function carregarCongregacoes() {
         $.ajax({
             url: '../controllers/chamada.php',
@@ -309,18 +384,11 @@ $(document).ready(function() {
                     });
                     $('#sorteio_congregacao').html(options);
                 } else {
-                    Swal.fire('Erro', 'Não foi possível carregar as congregações', 'error');
+                    exibirMensagem('error', 'Erro', 'Não foi possível carregar as congregações');
                 }
             },
-            error: function(xhr) {
-                let errorMsg = 'Erro ao carregar congregações';
-                try {
-                    const response = xhr.responseJSON;
-                    if (response && response.message) {
-                        errorMsg = response.message;
-                    }
-                } catch (e) {}
-                Swal.fire('Erro', errorMsg, 'error');
+            error: function() {
+                exibirMensagem('error', 'Erro', 'Erro ao carregar congregações');
             }
         });
     }
@@ -349,18 +417,11 @@ $(document).ready(function() {
                         $("#sorteio_classe").html(options).prop('disabled', false);
                     } else {
                         $("#sorteio_classe").html('<option value="">Nenhuma classe disponível</option>').prop('disabled', true);
-                        Swal.fire('Aviso', response.message || 'Nenhuma classe encontrada', 'info');
+                        exibirMensagem('info', 'Aviso', response.message || 'Nenhuma classe encontrada');
                     }
                 },
-                error: function(xhr) {
-                    let errorMsg = 'Erro ao carregar classes';
-                    try {
-                        const response = xhr.responseJSON;
-                        if (response && response.message) {
-                            errorMsg = response.message;
-                        }
-                    } catch (e) {}
-                    Swal.fire('Erro', errorMsg, 'error');
+                error: function() {
+                    exibirMensagem('error', 'Erro', 'Erro ao carregar classes');
                 }
             });
         }
@@ -388,7 +449,7 @@ $(document).ready(function() {
             }),
             dataType: 'json',
             beforeSend: function() {
-                $('#alunosLista').html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Carregando alunos...</p></div>');
+                $('#alunosLista').html('<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2 text-muted">Carregando alunos...</p></div>');
             },
             success: function(response) {
                 if (response.status === 'success') {
@@ -396,19 +457,17 @@ $(document).ready(function() {
                         let alunosHtml = '';
                         response.data.forEach(aluno => {
                             alunosHtml += 
-                                `<div class="aluno-item" data-id="${aluno.id}">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>${aluno.nome}</strong>
-                                            <div class="text-muted small">${aluno.classe_nome || 'Sem classe'}</div>
-                                        </div>
-                                        <i class="fas fa-user-check text-success" style="display: none;"></i>
+                                `<div class="aluno-item d-flex justify-content-between align-items-center" data-id="${aluno.id}">
+                                    <div>
+                                        <strong>${aluno.nome}</strong>
+                                        <div class="small text-muted">${aluno.classe_nome || 'Sem classe'}</div>
                                     </div>
+                                    <i class="fas fa-user-check fa-lg" style="display: none;"></i>
                                 </div>`;
                         });
                         
                         $('#alunosLista').html(alunosHtml);
-                        $('#alunosContainer').show();
+                        $('#alunosContainer').fadeIn();
                         
                         $('.aluno-item').click(function() {
                             $(this).toggleClass('selected');
@@ -418,38 +477,33 @@ $(document).ready(function() {
                         
                         atualizarContadorSelecionados();
                     } else {
-                        $('#alunosLista').html(`<div class="alert alert-info"><i class="fas fa-info-circle"></i> ${response.message || 'Nenhum aluno encontrado com os critérios atuais'}</div>`);
-                        $('#alunosContainer').show();
+                        $('#alunosLista').html(`<div class="alert alert-info m-3"><i class="fas fa-info-circle me-2"></i> ${response.message || 'Nenhum aluno encontrado com os critérios atuais'}</div>`);
+                        $('#alunosContainer').fadeIn();
                     }
                 } else {
-                    $('#alunosLista').html(`<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ${response.message || 'Erro ao carregar alunos'}</div>`);
+                    $('#alunosLista').html(`<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i> ${response.message || 'Erro ao carregar alunos'}</div>`);
                 }
             },
-            error: function(xhr) {
-                let errorMsg = 'Erro ao carregar alunos';
-                try {
-                    const response = xhr.responseJSON;
-                    if (response && response.message) errorMsg = response.message;
-                } catch (e) {}
-                $('#alunosLista').html(`<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ${errorMsg}</div>`);
+            error: function() {
+                $('#alunosLista').html(`<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i> Erro ao carregar alunos</div>`);
             }
         });
     });
     
     function atualizarContadorSelecionados() {
         const totalSelecionados = $('.aluno-item.selected').length;
-        $('#contadorSelecionados').text(totalSelecionados + ' selecionados');
+        $('#contadorSelecionados').text(totalSelecionados + ' selecionado' + (totalSelecionados !== 1 ? 's' : ''));
     }
 
     $('#btnSelecionarTodos').click(function() {
         $('.aluno-item').addClass('selected');
-        $('.aluno-item .fa-user-check').show();
+        $('.aluno-item .fa-user-check').fadeIn();
         atualizarContadorSelecionados();
     });
 
     $('#btnDesmarcarTodos').click(function() {
         $('.aluno-item').removeClass('selected');
-        $('.aluno-item .fa-user-check').hide();
+        $('.aluno-item .fa-user-check').fadeOut();
         atualizarContadorSelecionados();
     });
 
@@ -457,7 +511,7 @@ $(document).ready(function() {
         const alunosSelecionados = $('.aluno-item.selected');
         
         if (alunosSelecionados.length === 0) {
-            Swal.fire('Atenção', 'Selecione pelo menos um aluno para o sorteio', 'warning');
+            exibirMensagem('warning', 'Atenção', 'Selecione pelo menos um aluno para o sorteio');
             return;
         }
 
@@ -468,13 +522,13 @@ $(document).ready(function() {
         const congregacaoId = $('#sorteio_congregacao').val();
 
         if (!classeId || !congregacaoId) {
-            Swal.fire('Atenção', 'Selecione uma congregação e uma classe válidas', 'warning');
+            exibirMensagem('warning', 'Atenção', 'Selecione uma congregação e uma classe válidas');
             return;
         }
 
-        $('#sorteioResultados').show().css('opacity', 0).animate({opacity: 1}, 500);
+        $('#sorteioResultados').fadeIn();
         $('#resultadoSorteio').hide();
-        $('#animacaoSorteio').html('<div class="animate__animated animate__flash">Sorteando...</div>');
+        $('#animacaoSorteio').html('<div class="animate-pulse">🎲 Sorteando... 🎲</div>');
 
         const $btn = $(this);
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Sorteando...');
@@ -493,29 +547,37 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.status === 'success') {
                     const ganhador = response.data.ganhador;
-                    $('#ganhadorNome').html(`<i class="fas fa-trophy me-2"></i>${ganhador.nome}`);
+                    $('#ganhadorNome').html(`<i class="fas fa-trophy me-2 text-warning"></i>${ganhador.nome}`);
                     $('#ganhadorDetalhes').html(`
-                        <p><i class="fas fa-users me-2"></i> Classe: ${ganhador.classe_nome || 'Não informada'}</p>
-                        <p><i class="fas fa-award me-2"></i> Parabéns!</p>
-                        <p><i class="fas fa-calendar me-2"></i> Sorteado em: ${response.data.data_sorteio}</p>
+                        <div class="mt-2">
+                            <span class="badge-ebd badge-primary"><i class="fas fa-chalkboard-user me-1"></i> ${ganhador.classe_nome || 'Classe não informada'}</span>
+                            <span class="badge-ebd badge-success ms-2"><i class="fas fa-calendar me-1"></i> ${response.data.data_sorteio}</span>
+                        </div>
+                        <p class="mt-3 mb-0"><i class="fas fa-star text-warning me-1"></i> Parabéns ao ganhador! <i class="fas fa-star text-warning ms-1"></i></p>
                     `);
-                    $('#resultadoSorteio').fadeIn(1000);
+                    $('#resultadoSorteio').fadeIn(800);
                     $('#animacaoSorteio').empty();
+                    
+                    // Efeito de confete (opcional)
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sorteio Realizado!',
+                        html: `<strong class="text-warning">${ganhador.nome}</strong> foi o ganhador!`,
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
                 } else {
-                    Swal.fire('Erro', response.message || 'Erro desconhecido', 'error');
-                    $('#sorteioResultados').hide();
+                    exibirMensagem('error', 'Erro', response.message || 'Erro desconhecido');
+                    $('#sorteioResultados').fadeOut();
                 }
             },
-            error: function(xhr) {
-                let errorMsg = 'Erro ao conectar com o servidor';
-                try {
-                    const response = xhr.responseJSON;
-                    if (response && response.message) errorMsg = response.message;
-                } catch (e) { console.error('Erro ao processar resposta:', e); }
-                Swal.fire('Erro', errorMsg, 'error');
-                $('#sorteioResultados').hide();
+            error: function() {
+                exibirMensagem('error', 'Erro', 'Erro ao conectar com o servidor');
+                $('#sorteioResultados').fadeOut();
             },
-            complete: function() { $btn.prop('disabled', false).html('<i class="fas fa-random me-2"></i> Realizar Sorteio'); }
+            complete: function() { 
+                $btn.prop('disabled', false).html('<i class="fas fa-random me-2"></i> Realizar Sorteio'); 
+            }
         });
     });
 
@@ -523,5 +585,7 @@ $(document).ready(function() {
 });
 </script>
 
-</body>
-</html>
+<?php
+// Incluir footer
+require_once __DIR__ . '/../includes/footer.php';
+?>

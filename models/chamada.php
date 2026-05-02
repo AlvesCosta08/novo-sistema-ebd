@@ -1,416 +1,388 @@
 <?php
-// controllers/chamada.php
+// models/chamada.php
 
-// Configuração de Erros (Desative display_errors em produção)
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Cabeçalho JSON
-header('Content-Type: application/json');
+$caminhoConfig = __DIR__ . '/../config/conexao.php';
+if (!file_exists($caminhoConfig)) {
+    throw new Exception("Arquivo de configuração não encontrado: " . $caminhoConfig);
+}
+require_once $caminhoConfig;
 
-// Função auxiliar de resposta
-function sendResponse($status, $dataOrMessage, $message = null) {
-    $response = [
-        'status' => $status,
-        'message' => $status === 'error' ? ($dataOrMessage ?? $message) : $message
-    ];
-    
-    if ($status === 'success' && $dataOrMessage !== null) {
-        $response['data'] = $dataOrMessage;
+class Chamada {
+    private $pdo;
+
+    public function __construct($pdo) {
+        if (!$pdo) throw new Exception("Conexão PDO inválida.");
+        $this->pdo = $pdo;
     }
-    
-    echo json_encode($response);
-    exit;
-}
 
-// Inclusão de Dependências
-try {
-    require_once __DIR__ . '/../config/conexao.php'; 
-    require_once __DIR__ . '/../models/chamada.php';
-} catch (Exception $e) {
-    sendResponse('error', 'Erro de configuração do servidor: ' . $e->getMessage());
-}
+    public function padronizarTrimestre($trimestre, $ano = null) {
+        if (empty($trimestre)) return null;
+        $trimestre = trim($trimestre);
+        if (preg_match('/^\d{4}-T[1-4]$/i', $trimestre)) return strtoupper($trimestre);
+        if (preg_match('/^[1-4]$/', $trimestre)) {
+            $anoUsar = $ano ?: date('Y');
+            return $anoUsar . '-T' . $trimestre;
+        }
+        if (preg_match('/^(\d{4})[Tt]([1-4])$/', $trimestre, $matches)) {
+            return $matches[1] . '-T' . $matches[2];
+        }
+        if (preg_match('/^T?0?([1-4])$/i', $trimestre, $matches)) {
+            $anoUsar = $ano ?: date('Y');
+            return $anoUsar . '-T' . $matches[1];
+        }
+        return $trimestre;
+    }
 
-// Verificação de Conexão
-if (!isset($pdo) || !$pdo) {
-    sendResponse('error', 'Erro crítico: Conexão com banco de dados não estabelecida.');
-}
+    public function extrairNumeroTrimestre($trimestre) {
+        if (empty($trimestre)) return null;
+        if (preg_match('/-T([1-4])$/i', $trimestre, $matches)) return $matches[1];
+        if (preg_match('/^[1-4]$/', $trimestre)) return $trimestre;
+        if (preg_match('/^(\d{4})[Tt]([1-4])$/', $trimestre, $matches)) return $matches[2];
+        return null;
+    }
 
-// Verificação de Método HTTP
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    sendResponse('error', 'Método inválido. Apenas POST é permitido.');
-}
+    public function getCongregacoes() {
+        try {
+            $stmt = $this->pdo->query("SELECT id, nome FROM congregacoes ORDER BY nome ASC");
+            return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar congregações: " . $e->getMessage());
+            return [];
+        }
+    }
 
-// Leitura do Input JSON
-$input = json_decode(file_get_contents('php://input'), true);
+    public function getClassesByCongregacao($congregacao_id) {
+        try {
+            $query = "SELECT DISTINCT c.id, c.nome 
+                      FROM classes c
+                      INNER JOIN matriculas m ON m.classe_id = c.id
+                      WHERE m.congregacao_id = :congregacao_id AND m.status = 'ativo'
+                      ORDER BY FIELD(c.nome, 'MATERNAL','PRIMÁRIOS','JUNIORES','ADOLESCENTES','JOVENS','ADULTOS','DISCIPULADO'), c.nome ASC";
+            $stmt = $this->pdo->prepare($query);
+            $stmt->bindValue(':congregacao_id', $congregacao_id, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar classes: " . $e->getMessage());
+            return [];
+        }
+    }
 
-if (json_last_error() !== JSON_ERROR_NONE && empty($_POST)) {
-    sendResponse('error', 'Corpo da requisição inválido ou vazio.');
-}
-
-if (empty($input)) {
-    $input = $_POST;
-}
-
-$acao = $input['acao'] ?? '';
-if (empty($acao)) {
-    sendResponse('error', 'Ação não especificada.');
-}
-
-// Instanciação da Classe - As funções de trimestre agora estão no model
-try {
-    $chamadaModel = new Chamada($pdo);
-} catch (Exception $e) {
-    sendResponse('error', 'Falha ao inicializar o módulo de chamadas: ' . $e->getMessage());
-}
-
-// Roteamento de Ações
-try {
-    switch ($acao) {
-        
-        // ==================== CONGREGAÇÕES E CLASSES ====================
-        
-        case 'getCongregacoes':
-            $data = $chamadaModel->getCongregacoes();
-            sendResponse('success', $data);
-            break;
-
-        case 'getClassesByCongregacao':
-            $congregacao_id = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
-            if (!$congregacao_id) {
-                sendResponse('error', 'ID da congregação inválido.');
-            }
-            $data = $chamadaModel->getClassesByCongregacao($congregacao_id);
-            sendResponse('success', $data);
-            break;
-
-        // ==================== ALUNOS ====================
-        
-        case 'getAlunosByClasse':
-            $classe_id = filter_var($input['classe_id'] ?? 0, FILTER_VALIDATE_INT);
-            $congregacao_id = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
-            $trimestre = $input['trimestre'] ?? '';
-            $ano = $input['ano'] ?? date('Y');
-
-            if (!$classe_id || !$congregacao_id || empty($trimestre)) {
-                sendResponse('error', 'Parâmetros incompletos (Classe, Congregação, Trimestre).');
-            }
-
-            // Usa o método padronizarTrimestre do model
-            $trimestrePadronizado = $chamadaModel->padronizarTrimestre($trimestre, $ano);
-            $data = $chamadaModel->getAlunosByClasse($classe_id, $congregacao_id, $trimestrePadronizado);
-            sendResponse('success', $data);
-            break;
-
-        // ==================== SALVAR CHAMADA ====================
-        
-        case 'salvarChamada':
-            // Validação dos campos obrigatórios
-            $required = ['data', 'classe', 'professor', 'alunos', 'trimestre'];
-            $missing = [];
-            foreach ($required as $field) {
-                if (!isset($input[$field]) || empty($input[$field])) {
-                    $missing[] = $field;
-                }
-            }
-            
-            if (!empty($missing)) {
-                sendResponse('error', 'Campos obrigatórios faltando: ' . implode(', ', $missing));
-            }
-            
-            // Validação da data
-            if (!DateTime::createFromFormat('Y-m-d', $input['data'])) {
-                sendResponse('error', 'Formato de data inválido. Use YYYY-MM-DD');
-            }
-            
-            // Validação da lista de alunos
-            if (!is_array($input['alunos']) || empty($input['alunos'])) {
-                sendResponse('error', 'Lista de alunos inválida ou vazia.');
-            }
-            
-            // Usa o método padronizarTrimestre do model
-            $trimestrePadronizado = $chamadaModel->padronizarTrimestre($input['trimestre']);
-            
-            $resultado = $chamadaModel->registrarChamada(
-                $input['data'],
-                $trimestrePadronizado,
-                (int)$input['classe'],
-                (int)$input['professor'],
-                $input['alunos'],                  
-                floatval($input['oferta_classe'] ?? 0),
-                intval($input['total_visitantes'] ?? 0),
-                intval($input['total_biblias'] ?? 0),
-                intval($input['total_revistas'] ?? 0)
-            );
-        
-            if ($resultado['sucesso']) {
-                sendResponse('success', ['chamada_id' => $resultado['chamada_id'] ?? null], $resultado['mensagem']);
-            } else {
-                sendResponse('error', $resultado['mensagem']);
-            }
-            break;
-
-        // ==================== LISTAR CHAMADAS ====================
-        
-        case 'listarChamadas':
-            $filtros = [];
-            
-            if (!empty($input['congregacao_id'])) {
-                $filtros['congregacao_id'] = (int)$input['congregacao_id'];
-            }
-            
-            if (!empty($input['classe_id'])) {
-                $filtros['classe_id'] = (int)$input['classe_id'];
-            }
-            
-            // Processamento do trimestre para busca flexível - usando método do model
-            if (!empty($input['trimestre'])) {
-                $numeroTrimestre = $chamadaModel->extrairNumeroTrimestre($input['trimestre']);
+    public function getAlunosByClasse($classe_id, $congregacao_id, $trimestre) {
+        try {
+            $query = "SELECT DISTINCT a.id, a.nome
+                      FROM alunos a
+                      INNER JOIN matriculas m ON m.aluno_id = a.id
+                      WHERE m.classe_id = :classe_id
+                        AND m.congregacao_id = :congregacao_id
+                        AND m.trimestre = :trimestre
+                        AND m.status = 'ativo' AND a.status = 'ativo'
+                      ORDER BY a.nome ASC";
+            $stmt = $this->pdo->prepare($query);
+            $stmt->bindValue(':classe_id', $classe_id, PDO::PARAM_INT);
+            $stmt->bindValue(':congregacao_id', $congregacao_id, PDO::PARAM_INT);
+            $stmt->bindValue(':trimestre', $trimestre, PDO::PARAM_STR);
+            $stmt->execute();
+            $alunos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if (empty($alunos)) {
+                $numeroTrimestre = $this->extrairNumeroTrimestre($trimestre);
                 if ($numeroTrimestre) {
-                    $filtros['trimestre_numero'] = $numeroTrimestre;
-                    if (!empty($input['ano'])) {
-                        $filtros['ano'] = $input['ano'];
-                    } elseif (preg_match('/^(\d{4})/', $input['trimestre'], $matches)) {
-                        $filtros['ano'] = $matches[1];
-                    }
-                } else {
-                    $filtros['trimestre'] = $chamadaModel->padronizarTrimestre($input['trimestre']);
-                }
-            } elseif (!empty($input['trimestre_numero'])) {
-                // Suporte direto para filtro por número de trimestre
-                $filtros['trimestre_numero'] = $input['trimestre_numero'];
-                if (!empty($input['ano'])) {
-                    $filtros['ano'] = $input['ano'];
-                }
-            }
-            
-            if (!empty($input['data_inicio'])) {
-                $filtros['data_inicio'] = $input['data_inicio'];
-            }
-            
-            if (!empty($input['data_fim'])) {
-                $filtros['data_fim'] = $input['data_fim'];
-            }
-            
-            $data = $chamadaModel->listarChamadas($filtros);
-            sendResponse('success', $data);
-            break;
-
-        // ==================== DETALHES DA CHAMADA ====================
-        
-        case 'getChamada':
-            $chamadaId = filter_var($input['chamada_id'] ?? 0, FILTER_VALIDATE_INT);
-            if (!$chamadaId) {
-                sendResponse('error', 'ID da chamada inválido.');
-            }
-            
-            try {
-                $data = $chamadaModel->getChamadaDetalhada($chamadaId);
-                sendResponse('success', $data);
-            } catch (Exception $e) {
-                sendResponse('error', $e->getMessage());
-            }
-            break;
-
-        // ==================== ATUALIZAR CHAMADA ====================
-        
-        case 'atualizarChamada':
-            $required = ['chamada_id', 'data', 'trimestre', 'classe', 'professor', 'alunos'];
-            $missing = [];
-            foreach ($required as $field) {
-                if (!isset($input[$field])) {
-                    $missing[] = $field;
+                    $queryFlex = "SELECT DISTINCT a.id, a.nome
+                                  FROM alunos a
+                                  INNER JOIN matriculas m ON m.aluno_id = a.id
+                                  WHERE m.classe_id = :classe_id
+                                    AND m.congregacao_id = :congregacao_id
+                                    AND (m.trimestre LIKE CONCAT('%-T', :numero) OR m.trimestre = :trimestre)
+                                    AND m.status = 'ativo' AND a.status = 'ativo'
+                                  ORDER BY a.nome ASC";
+                    $stmtFlex = $this->pdo->prepare($queryFlex);
+                    $stmtFlex->bindValue(':classe_id', $classe_id, PDO::PARAM_INT);
+                    $stmtFlex->bindValue(':congregacao_id', $congregacao_id, PDO::PARAM_INT);
+                    $stmtFlex->bindValue(':numero', $numeroTrimestre, PDO::PARAM_STR);
+                    $stmtFlex->bindValue(':trimestre', $trimestre, PDO::PARAM_STR);
+                    $stmtFlex->execute();
+                    $alunos = $stmtFlex->fetchAll(PDO::FETCH_ASSOC);
                 }
             }
-            
-            if (!empty($missing)) {
-                sendResponse('error', 'Campos obrigatórios faltando: ' . implode(', ', $missing));
-            }
-            
-            $chamadaId = filter_var($input['chamada_id'], FILTER_VALIDATE_INT);
-            if (!$chamadaId) {
-                sendResponse('error', 'ID da chamada inválido.');
-            }
-            
-            if (!DateTime::createFromFormat('Y-m-d', $input['data'])) {
-                sendResponse('error', 'Formato de data inválido. Use YYYY-MM-DD');
-            }
-            
-            // Usa o método padronizarTrimestre do model
-            $trimestrePadronizado = $chamadaModel->padronizarTrimestre($input['trimestre']);
-            
-            $resultado = $chamadaModel->atualizarChamada(
-                $chamadaId,
-                $input['data'],
-                $trimestrePadronizado,
-                (int)$input['classe'],
-                (int)$input['professor'],
-                $input['alunos'],
-                floatval($input['oferta_classe'] ?? 0),
-                intval($input['total_visitantes'] ?? 0),
-                intval($input['total_biblias'] ?? 0),
-                intval($input['total_revistas'] ?? 0)
-            );
-            
-            if ($resultado['sucesso']) {
-                sendResponse('success', null, $resultado['mensagem']);
-            } else {
-                sendResponse('error', $resultado['mensagem']);
-            }
-            break;
-
-        // ==================== EXCLUIR CHAMADA ====================
-        
-        case 'excluirChamada':
-            $chamadaId = filter_var($input['chamada_id'] ?? 0, FILTER_VALIDATE_INT);
-            if (!$chamadaId) {
-                sendResponse('error', 'ID da chamada inválido.');
-            }
-            
-            $resultado = $chamadaModel->excluirChamada($chamadaId);
-            if ($resultado['sucesso']) {
-                sendResponse('success', null, $resultado['mensagem']);
-            } else {
-                sendResponse('error', $resultado['mensagem']);
-            }
-            break;
-
-        // ==================== CORRIGIR TRIMESTRES ANTIGOS ====================
-        
-        case 'corrigirTrimestres':
-            $ano = $input['ano'] ?? date('Y');
-            $resultado = $chamadaModel->corrigirTrimestresAntigos($ano);
-            if ($resultado['sucesso']) {
-                sendResponse('success', $resultado['dados'] ?? null, $resultado['mensagem']);
-            } else {
-                sendResponse('error', $resultado['mensagem']);
-            }
-            break;
-            
-        // ==================== VERIFICAR CHAMADA EXISTENTE ====================
-        
-        case 'verificarChamadaExistente':
-            $data = $input['data'] ?? '';
-            $classeId = filter_var($input['classe_id'] ?? 0, FILTER_VALIDATE_INT);
-            $congregacaoId = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
-            
-            if (!$data || !$classeId) {
-                sendResponse('error', 'Data e classe são obrigatórios.');
-            }
-            
-            try {
-                // Busca chamada existente para esta data e classe
-                $sql = "
-                    SELECT c.*, cl.nome as nome_classe, cong.nome as nome_congregacao
-                    FROM chamadas c
-                    INNER JOIN classes cl ON cl.id = c.classe_id
-                    INNER JOIN congregacoes cong ON cong.id = c.congregacao_id
-                    WHERE c.data = :data AND c.classe_id = :classe_id
-                ";
-                
-                // Se congregacao_id foi fornecido, adiciona ao filtro
-                if ($congregacaoId) {
-                    $sql .= " AND c.congregacao_id = :congregacao_id";
-                }
-                
-                $sql .= " LIMIT 1";
-                
-                $stmt = $pdo->prepare($sql);
-                $params = [':data' => $data, ':classe_id' => $classeId];
-                if ($congregacaoId) {
-                    $params[':congregacao_id'] = $congregacaoId;
-                }
-                $stmt->execute($params);
-                $chamadaExistente = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($chamadaExistente) {
-                    sendResponse('success', [
-                        'existe' => true,
-                        'chamada' => $chamadaExistente
-                    ], 'Já existe uma chamada para esta data.');
-                } else {
-                    sendResponse('success', ['existe' => false], 'Nenhuma chamada encontrada para esta data.');
-                }
-            } catch (PDOException $e) {
-                sendResponse('error', 'Erro ao verificar chamada existente: ' . $e->getMessage());
-            }
-            break;
-            
-        // ==================== ESTATÍSTICAS RÁPIDAS ====================
-        
-        case 'getEstatisticas':
-            $congregacaoId = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
-            $classeId = filter_var($input['classe_id'] ?? 0, FILTER_VALIDATE_INT);
-            $trimestre = $input['trimestre'] ?? '';
-            
-            try {
-                $where = [];
-                $params = [];
-                
-                if ($congregacaoId) {
-                    $where[] = "c.congregacao_id = :congregacao_id";
-                    $params[':congregacao_id'] = $congregacaoId;
-                }
-                
-                if ($classeId) {
-                    $where[] = "c.classe_id = :classe_id";
-                    $params[':classe_id'] = $classeId;
-                }
-                
-                if ($trimestre) {
-                    // Usa o método padronizarTrimestre do model
-                    $trimestrePadronizado = $chamadaModel->padronizarTrimestre($trimestre);
-                    $where[] = "c.trimestre = :trimestre";
-                    $params[':trimestre'] = $trimestrePadronizado;
-                }
-                
-                $sql = "SELECT 
-                            COUNT(DISTINCT c.id) as total_chamadas,
-                            COALESCE(SUM(c.total_visitantes), 0) as total_visitantes,
-                            COALESCE(SUM(c.total_biblias), 0) as total_biblias,
-                            COALESCE(SUM(c.total_revistas), 0) as total_revistas,
-                            COALESCE(SUM(c.oferta_classe), 0) as total_ofertas,
-                            COALESCE(SUM(CASE WHEN p.presente = 'presente' THEN 1 ELSE 0 END), 0) as total_presentes,
-                            COALESCE(SUM(CASE WHEN p.presente = 'ausente' THEN 1 ELSE 0 END), 0) as total_ausentes,
-                            COALESCE(SUM(CASE WHEN p.presente = 'justificado' THEN 1 ELSE 0 END), 0) as total_justificados
-                        FROM chamadas c
-                        LEFT JOIN presencas p ON p.chamada_id = c.id";
-                
-                if (!empty($where)) {
-                    $sql .= " WHERE " . implode(" AND ", $where);
-                }
-                
-                $stmt = $pdo->prepare($sql);
-                foreach ($params as $key => $value) {
-                    $stmt->bindValue($key, $value);
-                }
-                $stmt->execute();
-                
-                $estatisticas = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                // Garante que todos os campos tenham valores numéricos
-                $estatisticas['total_chamadas'] = (int)($estatisticas['total_chamadas'] ?? 0);
-                $estatisticas['total_visitantes'] = (int)($estatisticas['total_visitantes'] ?? 0);
-                $estatisticas['total_biblias'] = (int)($estatisticas['total_biblias'] ?? 0);
-                $estatisticas['total_revistas'] = (int)($estatisticas['total_revistas'] ?? 0);
-                $estatisticas['total_ofertas'] = (float)($estatisticas['total_ofertas'] ?? 0);
-                $estatisticas['total_presentes'] = (int)($estatisticas['total_presentes'] ?? 0);
-                $estatisticas['total_ausentes'] = (int)($estatisticas['total_ausentes'] ?? 0);
-                $estatisticas['total_justificados'] = (int)($estatisticas['total_justificados'] ?? 0);
-                
-                sendResponse('success', $estatisticas);
-            } catch (PDOException $e) {
-                error_log("Erro ao buscar estatísticas: " . $e->getMessage());
-                sendResponse('error', 'Erro ao buscar estatísticas: ' . $e->getMessage());
-            }
-            break;
-
-        default:
-            sendResponse('error', 'Ação inválida: ' . htmlspecialchars($acao));
+            return $alunos;
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar alunos: " . $e->getMessage());
+            return [];
+        }
     }
-} catch (Exception $e) {
-    error_log("Erro no Controller de Chamadas: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
-    sendResponse('error', 'Ocorreu um erro interno ao processar sua solicitação: ' . $e->getMessage());
+
+    public function registrarChamada($data, $trimestre, $classeId, $professorId, $alunos, $ofertaClasse = 0, $total_visitantes = 0, $total_biblias = 0, $total_revistas = 0) {
+        try {
+            if (!DateTime::createFromFormat('Y-m-d', $data)) {
+                throw new Exception("Formato de data inválido. Use YYYY-MM-DD");
+            }
+            $trimestrePadronizado = $this->padronizarTrimestre($trimestre);
+            $stmtClasse = $this->pdo->prepare("
+                SELECT DISTINCT m.congregacao_id 
+                FROM matriculas m
+                WHERE m.classe_id = :classe 
+                AND (m.trimestre = :trimestre OR m.trimestre LIKE CONCAT('%-T', :numero))
+                LIMIT 1
+            ");
+            $numeroTrimestre = $this->extrairNumeroTrimestre($trimestrePadronizado);
+            $stmtClasse->execute([
+                ':classe' => $classeId,
+                ':trimestre' => $trimestrePadronizado,
+                ':numero' => $numeroTrimestre
+            ]);
+            $congregacaoId = $stmtClasse->fetchColumn();
+            if (!$congregacaoId) {
+                throw new Exception("Não foi possível identificar a congregação para esta classe no trimestre especificado.");
+            }
+            $this->pdo->beginTransaction();
+            $sqlChamada = "INSERT INTO chamadas 
+                          (data, classe_id, congregacao_id, professor_id, trimestre, oferta_classe, total_visitantes, total_biblias, total_revistas) 
+                          VALUES 
+                          (:data, :classe_id, :congregacao_id, :professor_id, :trimestre, :oferta_classe, :total_visitantes, :total_biblias, :total_revistas)";
+            $stmt = $this->pdo->prepare($sqlChamada);
+            $stmt->execute([
+                ':data' => $data,
+                ':classe_id' => (int)$classeId,
+                ':congregacao_id' => (int)$congregacaoId,
+                ':professor_id' => (int)$professorId,
+                ':trimestre' => $trimestrePadronizado,
+                ':oferta_classe' => number_format((float)$ofertaClasse, 2, '.', ''),
+                ':total_visitantes' => (int)$total_visitantes,
+                ':total_biblias' => (int)$total_biblias,
+                ':total_revistas' => (int)$total_revistas
+            ]);
+            $chamadaId = $this->pdo->lastInsertId();
+            if (!empty($alunos)) {
+                $sqlPresenca = "INSERT INTO presencas (chamada_id, aluno_id, presente) VALUES (:chamada_id, :aluno_id, :presente)";
+                $stmtPresenca = $this->pdo->prepare($sqlPresenca);
+                foreach ($alunos as $aluno) {
+                    if (!isset($aluno['id']) || !isset($aluno['status'])) {
+                        throw new Exception("Dados do aluno incompletos.");
+                    }
+                    $statusPresenca = in_array($aluno['status'], ['presente', 'ausente', 'justificado']) ? $aluno['status'] : 'ausente';
+                    $stmtPresenca->execute([
+                        ':chamada_id' => $chamadaId,
+                        ':aluno_id' => (int)$aluno['id'],
+                        ':presente' => $statusPresenca
+                    ]);
+                }
+            }
+            $this->pdo->commit();
+            return ['sucesso' => true, 'mensagem' => 'Chamada registrada com sucesso', 'chamada_id' => $chamadaId];
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            error_log("Erro ao registrar chamada: " . $e->getMessage());
+            return ['sucesso' => false, 'mensagem' => $e->getMessage()];
+        }
+    }
+
+    // ==================== LISTAR CHAMADAS (CORRIGIDO) ====================
+    public function listarChamadas($filtros = []) {
+        try {
+            $where = [];
+            $params = [];
+            if (!empty($filtros['congregacao_id'])) {
+                $where[] = "c.congregacao_id = :congregacao_id";
+                $params[':congregacao_id'] = (int)$filtros['congregacao_id'];
+            }
+            if (!empty($filtros['classe_id'])) {
+                $where[] = "c.classe_id = :classe_id";
+                $params[':classe_id'] = (int)$filtros['classe_id'];
+            }
+            if (!empty($filtros['trimestre_numero'])) {
+                $numero = $filtros['trimestre_numero'];
+                if (!empty($filtros['ano'])) {
+                    $where[] = "(c.trimestre = :trimestre_exato OR c.trimestre = :trimestre_numero)";
+                    $params[':trimestre_exato'] = $filtros['ano'] . '-T' . $numero;
+                    $params[':trimestre_numero'] = $numero;
+                } else {
+                    $where[] = "(c.trimestre = :numero_trimestre OR c.trimestre LIKE CONCAT('%-T', :numero_trimestre))";
+                    $params[':numero_trimestre'] = $numero;
+                }
+            } elseif (!empty($filtros['trimestre'])) {
+                $where[] = "c.trimestre = :trimestre";
+                $params[':trimestre'] = $filtros['trimestre'];
+            }
+            if (!empty($filtros['data_inicio'])) {
+                $where[] = "c.data >= :data_inicio";
+                $params[':data_inicio'] = $filtros['data_inicio'];
+            }
+            if (!empty($filtros['data_fim'])) {
+                $where[] = "c.data <= :data_fim";
+                $params[':data_fim'] = $filtros['data_fim'];
+            }
+
+            $sql = "SELECT 
+                        c.*,
+                        cong.nome AS nome_congregacao,
+                        cl.nome AS nome_classe,
+                        u.nome AS nome_professor,
+                        COALESCE(pres.total_presentes, 0) AS total_presentes,
+                        COALESCE(pres.total_ausentes, 0) AS total_ausentes,
+                        COALESCE(pres.total_justificados, 0) AS total_justificados,
+                        COALESCE(pres.total_marcacoes, 0) AS total_marcacoes
+                    FROM chamadas c
+                    INNER JOIN congregacoes cong ON cong.id = c.congregacao_id
+                    INNER JOIN classes cl ON cl.id = c.classe_id
+                    INNER JOIN usuarios u ON u.id = c.professor_id
+                    LEFT JOIN (
+                        SELECT 
+                            chamada_id,
+                            SUM(CASE WHEN presente = 'presente' THEN 1 ELSE 0 END) AS total_presentes,
+                            SUM(CASE WHEN presente = 'ausente' THEN 1 ELSE 0 END) AS total_ausentes,
+                            SUM(CASE WHEN presente = 'justificado' THEN 1 ELSE 0 END) AS total_justificados,
+                            COUNT(*) AS total_marcacoes
+                        FROM presencas
+                        GROUP BY chamada_id
+                    ) pres ON pres.chamada_id = c.id";
+
+            if (!empty($where)) $sql .= " WHERE " . implode(" AND ", $where);
+            $sql .= " ORDER BY c.data DESC, c.id DESC";
+
+            $stmt = $this->pdo->prepare($sql);
+            foreach ($params as $key => $value) $stmt->bindValue($key, $value);
+            $stmt->execute();
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($result as &$row) {
+                $row['total_presentes'] = (int)$row['total_presentes'];
+                $row['total_ausentes'] = (int)$row['total_ausentes'];
+                $row['total_justificados'] = (int)$row['total_justificados'];
+                $row['oferta_classe'] = (float)$row['oferta_classe'];
+            }
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Erro ao listar chamadas: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    // ==================== DETALHES DA CHAMADA (CORRIGIDO COM LOGS) ====================
+public function getChamadaDetalhada($chamadaId) {
+    try {
+        $id = (int)$chamadaId;
+        error_log("getChamadaDetalhada: buscando chamada ID $id");
+        
+        // Usa LEFT JOIN para evitar erro se classe ou congregação não existirem
+        $stmt = $this->pdo->prepare("
+            SELECT c.*, 
+                   COALESCE(cong.nome, 'Não definida') AS nome_congregacao,
+                   COALESCE(cl.nome, 'Classe não encontrada') AS nome_classe,
+                   COALESCE(u.nome, 'Professor não encontrado') AS nome_professor
+            FROM chamadas c
+            LEFT JOIN congregacoes cong ON cong.id = c.congregacao_id
+            LEFT JOIN classes cl ON cl.id = c.classe_id
+            LEFT JOIN usuarios u ON u.id = c.professor_id
+            WHERE c.id = :id
+        ");
+        $stmt->execute([':id' => $id]);
+        $chamada = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$chamada) {
+            error_log("getChamadaDetalhada: Nenhum registro encontrado para ID $id");
+            throw new Exception("Chamada não encontrada.");
+        }
+        
+        // Busca presenças (não depende de JOINs externos)
+        $stmtPres = $this->pdo->prepare("
+            SELECT p.aluno_id, a.nome, p.presente 
+            FROM presencas p 
+            INNER JOIN alunos a ON a.id = p.aluno_id 
+            WHERE p.chamada_id = :id 
+            ORDER BY a.nome
+        ");
+        $stmtPres->execute([':id' => $id]);
+        $chamada['alunos'] = $stmtPres->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("getChamadaDetalhada: Chamada ID $id carregada com " . count($chamada['alunos']) . " alunos");
+        return $chamada;
+    } catch (PDOException $e) {
+        error_log("Erro ao detalhar chamada: " . $e->getMessage());
+        throw new Exception("Falha ao buscar detalhes da chamada: " . $e->getMessage());
+    }
+}
+
+    public function atualizarChamada($chamadaId, $data, $trimestre, $classeId, $professorId, $alunos, $ofertaClasse = 0, $total_visitantes = 0, $total_biblias = 0, $total_revistas = 0) {
+        try {
+            if (!DateTime::createFromFormat('Y-m-d', $data)) throw new Exception("Formato de data inválido.");
+            $trimestrePadronizado = $this->padronizarTrimestre($trimestre);
+            $this->pdo->beginTransaction();
+            $sql = "UPDATE chamadas SET 
+                        data = :data, trimestre = :trimestre, classe_id = :classe_id,
+                        professor_id = :professor_id, oferta_classe = :oferta_classe,
+                        total_visitantes = :total_visitantes, total_biblias = :total_biblias,
+                        total_revistas = :total_revistas
+                    WHERE id = :id";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                ':data' => $data, ':trimestre' => $trimestrePadronizado,
+                ':classe_id' => (int)$classeId, ':professor_id' => (int)$professorId,
+                ':oferta_classe' => number_format((float)$ofertaClasse, 2, '.', ''),
+                ':total_visitantes' => (int)$total_visitantes, ':total_biblias' => (int)$total_biblias,
+                ':total_revistas' => (int)$total_revistas, ':id' => (int)$chamadaId
+            ]);
+            $stmtDel = $this->pdo->prepare("DELETE FROM presencas WHERE chamada_id = :id");
+            $stmtDel->execute([':id' => (int)$chamadaId]);
+            if (!empty($alunos)) {
+                $sqlPresenca = "INSERT INTO presencas (chamada_id, aluno_id, presente) VALUES (:chamada_id, :aluno_id, :presente)";
+                $stmtPresenca = $this->pdo->prepare($sqlPresenca);
+                foreach ($alunos as $aluno) {
+                    if (!isset($aluno['id']) || !isset($aluno['status'])) throw new Exception("Dados do aluno incompletos.");
+                    $status = in_array($aluno['status'], ['presente', 'ausente', 'justificado']) ? $aluno['status'] : 'ausente';
+                    $stmtPresenca->execute([
+                        ':chamada_id' => (int)$chamadaId,
+                        ':aluno_id' => (int)$aluno['id'],
+                        ':presente' => $status
+                    ]);
+                }
+            }
+            $this->pdo->commit();
+            return ['sucesso' => true, 'mensagem' => 'Chamada atualizada com sucesso.'];
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            error_log("Erro ao atualizar chamada: " . $e->getMessage());
+            return ['sucesso' => false, 'mensagem' => $e->getMessage()];
+        }
+    }
+
+    public function excluirChamada($chamadaId) {
+        try {
+            $this->pdo->beginTransaction();
+            $stmt = $this->pdo->prepare("DELETE FROM presencas WHERE chamada_id = :id");
+            $stmt->execute([':id' => (int)$chamadaId]);
+            $stmt = $this->pdo->prepare("DELETE FROM chamadas WHERE id = :id");
+            $stmt->execute([':id' => (int)$chamadaId]);
+            $this->pdo->commit();
+            return ['sucesso' => true, 'mensagem' => 'Chamada excluída com sucesso.'];
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            error_log("Erro ao excluir chamada: " . $e->getMessage());
+            return ['sucesso' => false, 'mensagem' => $e->getMessage()];
+        }
+    }
+
+    public function corrigirTrimestresAntigos($ano = null) {
+        try {
+            $anoAtual = $ano ?: date('Y');
+            $sqlCheck = "SELECT COUNT(*) as total FROM chamadas WHERE trimestre REGEXP '^[1-4]$' AND YEAR(data) = :ano";
+            $stmtCheck = $this->pdo->prepare($sqlCheck);
+            $stmtCheck->execute([':ano' => $anoAtual]);
+            $total = $stmtCheck->fetchColumn();
+            if ($total == 0) {
+                return ['sucesso' => true, 'mensagem' => "Nenhum registro para corrigir no ano {$anoAtual}.", 'dados' => ['atualizadas' => 0]];
+            }
+            $sql = "UPDATE chamadas SET trimestre = CONCAT(:ano, '-T', trimestre) WHERE trimestre REGEXP '^[1-4]$' AND YEAR(data) = :ano";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([':ano' => $anoAtual]);
+            $atualizadas = $stmt->rowCount();
+            return ['sucesso' => true, 'mensagem' => "{$atualizadas} registro(s) atualizado(s) para o formato padronizado.", 'dados' => ['atualizadas' => $atualizadas]];
+        } catch (PDOException $e) {
+            error_log("Erro ao corrigir trimestres: " . $e->getMessage());
+            return ['sucesso' => false, 'mensagem' => 'Erro ao corrigir trimestres: ' . $e->getMessage()];
+        }
+    }
 }
 ?>

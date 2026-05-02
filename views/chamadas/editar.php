@@ -1,11 +1,38 @@
 <?php
+// ========== LOGS DE DEPURAÇÃO ==========
+// Ativa exibição de erros (remova em produção)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Arquivo de log personalizado (opcional)
+$logFile = __DIR__ . '/../../logs/editar_chamada.log';
+if (!file_exists(dirname($logFile))) mkdir(dirname($logFile), 0777, true);
+
+function logMessage($message) {
+    global $logFile;
+    $timestamp = date('Y-m-d H:i:s');
+    $logEntry = "[$timestamp] $message" . PHP_EOL;
+    error_log($logEntry, 3, $logFile); // Escreve no arquivo personalizado
+    error_log($message); // Também envia para o log padrão do servidor
+}
+
+logMessage("=== INÍCIO editar.php ===");
+logMessage("GET: " . json_encode($_GET));
+logMessage("POST: " . json_encode($_POST));
+logMessage("SESSION antes do start: " . json_encode($_SESSION ?? []));
+
 // Garantir que a sessão está ativa
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
+    logMessage("Sessão iniciada. Session ID: " . session_id());
 }
+logMessage("SESSION depois do start: " . json_encode($_SESSION));
 
 // Verificar se usuário está logado
-require_once __DIR__ . '/../../auth/valida_sessao.php';
+logMessage("Incluindo valida_sessao.php");
+require_once '../../auth/valida_sessao.php';
+logMessage("Validação de sessão concluída. Usuário ID na sessão: " . ($_SESSION['usuario_id'] ?? 'NULO'));
 
 // Configurar título da página
 $pageTitle = 'Editar Chamada';
@@ -18,19 +45,14 @@ $nome_usuario    = $_SESSION['nome'] ?? $_SESSION['usuario_nome'] ?? 'Usuário';
 $perfil          = $_SESSION['perfil'] ?? $_SESSION['usuario_perfil'] ?? 'professor';
 $congregacao_id  = $_SESSION['congregacao_id'] ?? null;
 
-// Obtém o ID da chamada via GET
+// Obtém o ID da chamada via GET (prioritário) ou POST (fallback)
 $chamadaId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
-// Verificação mais robusta
-if (!$chamadaId) {
-    // Tenta buscar do POST também
-    if (isset($_POST['id'])) {
-        $chamadaId = (int)$_POST['id'];
-    }
+if (!$chamadaId && isset($_POST['id'])) {
+    $chamadaId = (int)$_POST['id'];
 }
 
+// Verificação final: se ainda não tiver ID, exibe erro amigável
 if (!$chamadaId) {
-    // Mostra mensagem de erro amigável
     ?>
     <div class="container-fluid px-4 mt-4">
         <div class="modern-card">
@@ -52,7 +74,7 @@ if (!$chamadaId) {
     exit;
 }
 
-// Função para obter o trimestre atual
+// Função para obter o trimestre atual (usada apenas para fallback)
 function getTrimestreAtual() {
     $mes = date('n');
     if ($mes >= 1 && $mes <= 3) return 1;
@@ -297,10 +319,11 @@ $trimestreAtual = getTrimestreAtual();
 
 <script>
     const CHAMADA_ID = <?= $chamadaId ?>;
-    const USUARIO_ID = <?= $usuario_id ? 0 : $usuario_id ?>;
+    // CORREÇÃO: usar operador coalescência nula para garantir número
+    const USUARIO_ID = <?= $usuario_id ?? 0 ?>;
     const USUARIO_PERFIL = '<?= $perfil ?>';
     const USUARIO_CONGR_ID = <?= json_encode($congregacao_id) ?>;
-    const BASE_URL = '../../controllers/chamada.php';  // CORRIGIDO: mesmo caminho do index.php
+    const BASE_URL = '../../controllers/chamada.php';
     const ANO_ATUAL = <?= $anoAtual ?>;
     const TRIMESTRE_ATUAL = <?= $trimestreAtual ?>;
     
@@ -339,7 +362,12 @@ $trimestreAtual = getTrimestreAtual();
         once: true,
         offset: 50
     });
+
+    // Log para depuração (pode ser removido em produção)
+    console.log('Editar chamada - ID:', CHAMADA_ID);
+    console.log('BASE_URL:', BASE_URL);
 </script>
+
 <script src="js/editar.js"></script>
 
 <?php

@@ -1,4 +1,4 @@
-// editar.js - Versão corrigida
+// editar.js - Versão final corrigida
 
 document.addEventListener('DOMContentLoaded', async function() {
     const formContainer = document.getElementById('formContainer');
@@ -62,14 +62,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (btnSalvar) {
             btnSalvar.addEventListener('click', () => {
                 if (confirmacaoModal) {
-                    confirmacaoModal.show();
+                    // Remove listener antigo do botão de confirmação para evitar duplicação
                     const btnConfirmar = document.getElementById('btnConfirmarSalvar');
                     if (btnConfirmar) {
-                        // Remove listener anterior para evitar duplicação
                         const newBtn = btnConfirmar.cloneNode(true);
                         btnConfirmar.parentNode.replaceChild(newBtn, btnConfirmar);
-                        newBtn.addEventListener('click', () => salvarEdicao());
+                        newBtn.addEventListener('click', () => {
+                            salvarEdicao();
+                        });
                     }
+                    confirmacaoModal.show();
                 } else {
                     salvarEdicao();
                 }
@@ -186,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!tbody) return;
         
         if (!alunos || alunos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno matriculado nesta classe.</td></tr>`;
+            tbody.innerHTML = `<td><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno matriculado nesta classe.</td></tr>`;
             return;
         }
         
@@ -242,7 +244,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         let alunosHtml = '';
         if (chamada.alunos && chamada.alunos.length > 0) {
             chamada.alunos.forEach((aluno, index) => {
-                // CORRIGIDO: usar aluno.id (não aluno.aluno_id)
                 const alunoId = aluno.aluno_id || aluno.id;
                 const presente = aluno.presente === 'presente' ? 'checked' : '';
                 const ausente = aluno.presente === 'ausente' ? 'checked' : '';
@@ -272,7 +273,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 `;
             });
         } else {
-            alunosHtml = `<td><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno registrado nesta chamada.</td></tr>`;
+            alunosHtml = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno registrado nesta chamada.</td></tr>`;
         }
         
         const podeEditarTrimestre = USUARIO_PERFIL === 'admin' ? '' : 'readonly disabled';

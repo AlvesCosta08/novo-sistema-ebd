@@ -5,6 +5,7 @@ ini_set('display_errors', 0);
 error_reporting(E_ALL);
 header('Content-Type: application/json');
 
+// Função auxiliar de resposta
 function sendResponse($status, $dataOrMessage, $message = null) {
     $response = [
         'status' => $status,
@@ -17,6 +18,7 @@ function sendResponse($status, $dataOrMessage, $message = null) {
     exit;
 }
 
+// Inclusão de dependências
 try {
     require_once __DIR__ . '/../config/conexao.php';
     require_once __DIR__ . '/../models/chamada.php';
@@ -24,29 +26,38 @@ try {
     sendResponse('error', 'Erro de configuração: ' . $e->getMessage());
 }
 
+// Verificação de conexão
 if (!isset($pdo) || !$pdo) {
     sendResponse('error', 'Erro crítico: conexão não estabelecida.');
 }
 
+// Método HTTP
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendResponse('error', 'Método inválido. Use POST.');
 }
 
+// Leitura do input
 $input = json_decode(file_get_contents('php://input'), true);
 if (json_last_error() !== JSON_ERROR_NONE && empty($_POST)) {
     sendResponse('error', 'Corpo da requisição inválido.');
 }
-if (empty($input)) $input = $_POST;
+if (empty($input)) {
+    $input = $_POST;
+}
 
 $acao = $input['acao'] ?? '';
-if (empty($acao)) sendResponse('error', 'Ação não especificada.');
+if (empty($acao)) {
+    sendResponse('error', 'Ação não especificada.');
+}
 
+// Instancia o model
 try {
     $chamadaModel = new Chamada($pdo);
 } catch (Exception $e) {
     sendResponse('error', 'Falha ao inicializar módulo: ' . $e->getMessage());
 }
 
+// Roteamento
 try {
     switch ($acao) {
         case 'getCongregacoes':
@@ -78,7 +89,7 @@ try {
                 if (!isset($input[$field]) || empty($input[$field])) $missing[] = $field;
             }
             if (!empty($missing)) sendResponse('error', 'Campos obrigatórios faltando: ' . implode(', ', $missing));
-            if (!DateTime::createFromFormat('Y-m-d', $input['data'])) sendResponse('error', 'Formato de data inválido. Use YYYY-MM-DD');
+            if (!DateTime::createFromFormat('Y-m-d', $input['data'])) sendResponse('error', 'Formato de data inválido.');
             if (!is_array($input['alunos']) || empty($input['alunos'])) sendResponse('error', 'Lista de alunos inválida ou vazia.');
 
             $trimestrePadronizado = $chamadaModel->padronizarTrimestre($input['trimestre']);
@@ -114,15 +125,35 @@ try {
             }
             if (!empty($input['data_inicio'])) $filtros['data_inicio'] = $input['data_inicio'];
             if (!empty($input['data_fim'])) $filtros['data_fim'] = $input['data_fim'];
-            sendResponse('success', $chamadaModel->listarChamadas($filtros));
+
+            $chamadas = $chamadaModel->listarChamadas($filtros);
+            foreach ($chamadas as &$chamada) {
+                $chamada['total_presentes'] = (int)($chamada['total_presentes'] ?? 0);
+                $chamada['total_ausentes'] = (int)($chamada['total_ausentes'] ?? 0);
+                $chamada['total_justificados'] = (int)($chamada['total_justificados'] ?? 0);
+                $chamada['oferta_classe'] = (float)($chamada['oferta_classe'] ?? 0);
+            }
+            sendResponse('success', $chamadas);
             break;
 
+        // ========== GET CHAMADA – CORRIGIDO COM LOGS ==========
         case 'getChamada':
             $chamadaId = filter_var($input['chamada_id'] ?? 0, FILTER_VALIDATE_INT);
-            if (!$chamadaId) sendResponse('error', 'ID da chamada inválido.');
+            if (!$chamadaId) {
+                error_log("ERRO getChamada: ID inválido ou zero");
+                sendResponse('error', 'ID da chamada inválido.');
+            }
             try {
-                sendResponse('success', $chamadaModel->getChamadaDetalhada($chamadaId));
+                error_log("getChamada: buscando ID $chamadaId");
+                $data = $chamadaModel->getChamadaDetalhada($chamadaId);
+                if (!$data || empty($data)) {
+                    error_log("getChamada: nenhum dado retornado para ID $chamadaId");
+                    sendResponse('error', 'Chamada não encontrada no banco de dados.');
+                }
+                error_log("getChamada: sucesso para ID $chamadaId – " . count($data['alunos'] ?? []) . " alunos");
+                sendResponse('success', $data);
             } catch (Exception $e) {
+                error_log("ERRO getChamada: " . $e->getMessage());
                 sendResponse('error', $e->getMessage());
             }
             break;
@@ -163,37 +194,27 @@ try {
             else sendResponse('error', $resultado['mensagem']);
             break;
 
-        // ==================== VERIFICAR CHAMADA EXISTENTE (CORRIGIDO) ====================
         case 'verificarChamadaExistente':
             $data = $input['data'] ?? '';
             $classeId = filter_var($input['classe_id'] ?? 0, FILTER_VALIDATE_INT);
             $congregacaoId = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
             if (!$data || !$classeId) sendResponse('error', 'Data e classe são obrigatórios.');
-
             try {
-                $sql = "
-                    SELECT c.*, cl.nome as nome_classe, cong.nome as nome_congregacao
-                    FROM chamadas c
-                    INNER JOIN classes cl ON cl.id = c.classe_id
-                    INNER JOIN congregacoes cong ON cong.id = c.congregacao_id
-                    WHERE c.data = :data AND c.classe_id = :classe_id
-                ";
+                $sql = "SELECT c.*, cl.nome as nome_classe, cong.nome as nome_congregacao
+                        FROM chamadas c
+                        INNER JOIN classes cl ON cl.id = c.classe_id
+                        INNER JOIN congregacoes cong ON cong.id = c.congregacao_id
+                        WHERE c.data = :data AND c.classe_id = :classe_id";
                 if ($congregacaoId) $sql .= " AND c.congregacao_id = :congregacao_id";
-                $sql .= " LIMIT 1";
-
+                $sql .= " ORDER BY c.id DESC LIMIT 1";
                 $stmt = $pdo->prepare($sql);
                 $params = [':data' => $data, ':classe_id' => $classeId];
                 if ($congregacaoId) $params[':congregacao_id'] = $congregacaoId;
                 $stmt->execute($params);
                 $chamada = $stmt->fetch(PDO::FETCH_ASSOC);
-
                 if ($chamada) {
-                    // GARANTE QUE O ID SEJA UM INTEIRO VÁLIDO
                     $chamada['id'] = (int)$chamada['id'];
-                    sendResponse('success', [
-                        'existe' => true,
-                        'chamada' => $chamada
-                    ], 'Já existe uma chamada para esta data.');
+                    sendResponse('success', ['existe' => true, 'chamada' => $chamada], 'Já existe uma chamada para esta data.');
                 } else {
                     sendResponse('success', ['existe' => false], 'Nenhuma chamada encontrada.');
                 }
@@ -203,7 +224,6 @@ try {
             break;
 
         case 'getEstatisticas':
-            // ... (mantido igual, já funciona)
             $congregacaoId = filter_var($input['congregacao_id'] ?? 0, FILTER_VALIDATE_INT);
             $classeId = filter_var($input['classe_id'] ?? 0, FILTER_VALIDATE_INT);
             $trimestre = $input['trimestre'] ?? '';
@@ -219,13 +239,13 @@ try {
                 }
                 $sql = "SELECT 
                             COUNT(DISTINCT c.id) as total_chamadas,
-                            COALESCE(SUM(c.total_visitantes),0) as total_visitantes,
-                            COALESCE(SUM(c.total_biblias),0) as total_biblias,
-                            COALESCE(SUM(c.total_revistas),0) as total_revistas,
-                            COALESCE(SUM(c.oferta_classe),0) as total_ofertas,
-                            COALESCE(SUM(CASE WHEN p.presente='presente' THEN 1 ELSE 0 END),0) as total_presentes,
-                            COALESCE(SUM(CASE WHEN p.presente='ausente' THEN 1 ELSE 0 END),0) as total_ausentes,
-                            COALESCE(SUM(CASE WHEN p.presente='justificado' THEN 1 ELSE 0 END),0) as total_justificados
+                            COALESCE(SUM(c.total_visitantes), 0) as total_visitantes,
+                            COALESCE(SUM(c.total_biblias), 0) as total_biblias,
+                            COALESCE(SUM(c.total_revistas), 0) as total_revistas,
+                            COALESCE(SUM(c.oferta_classe), 0) as total_ofertas,
+                            COALESCE(SUM(CASE WHEN p.presente = 'presente' THEN 1 ELSE 0 END), 0) as total_presentes,
+                            COALESCE(SUM(CASE WHEN p.presente = 'ausente' THEN 1 ELSE 0 END), 0) as total_ausentes,
+                            COALESCE(SUM(CASE WHEN p.presente = 'justificado' THEN 1 ELSE 0 END), 0) as total_justificados
                         FROM chamadas c
                         LEFT JOIN presencas p ON p.chamada_id = c.id";
                 if (!empty($where)) $sql .= " WHERE " . implode(" AND ", $where);

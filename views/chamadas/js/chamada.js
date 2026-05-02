@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.status === 'success' && Array.isArray(data.data)) {
                 if (data.data.length === 0) {
                     exibirAlerta('Nenhum aluno matriculado neste período.', 'info');
-                    if (tabelaAlunos) tabelaAlunos.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2"></i>Nenhum aluno matriculado.</td></tr>`;
+                    if (tabelaAlunos) tabelaAlunos.innerHTML = `<td><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2"></i>Nenhum aluno matriculado.</td></tr>`;
                     if (containerAlunos) containerAlunos.classList.remove('d-none');
                 } else {
                     montarTabelaAlunos(data.data);
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label class="radio-option d-inline-flex align-items-center gap-1"><input type="radio" name="status_${aluno.id}" value="ausente" class="form-check-input"><span class="badge bg-danger">Ausente</span></label>
                         <label class="radio-option d-inline-flex align-items-center gap-1"><input type="radio" name="status_${aluno.id}" value="justificado" class="form-check-input"><span class="badge bg-warning text-dark">Justificado</span></label>
                     </div>
-                </td>
+                <table>
             `;
             tabelaAlunos.appendChild(tr);
         });
@@ -231,15 +231,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return alunos;
     }
 
-    // ==================== FUNÇÃO CORRIGIDA (REDIRECIONAMENTO FUNCIONAL) ====================
+    // ========== FUNÇÃO VERIFICAR CHAMADA (CORRIGIDA) ==========
     async function verificarChamadaExistente() {
         const congregacaoId = congregacaoSelect?.value;
         const classeId = classeSelect?.value;
         const data = dataChamada?.value;
+
         if (!congregacaoId || !classeId || !data) {
             exibirAlerta('Preencha todos os campos (congregação, classe e data).', 'warning');
             return;
         }
+
         showLoading();
         try {
             const response = await fetch(BASE_URL, {
@@ -252,8 +254,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     congregacao_id: parseInt(congregacaoId)
                 })
             });
+
             const result = await response.json();
-            console.log('Resposta raw:', result);
+            console.log('=== RESPOSTA VERIFICAÇÃO ===', result);
 
             const alertDiv = document.getElementById('chamadaExistenteAlert');
             const msgSpan = document.getElementById('chamadaExistenteMsg');
@@ -261,43 +264,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (result.status === 'success' && result.data?.existe === true) {
                 const dataFormatada = formatarData(data);
-                // EXTRAÇÃO ROBUSTA DO ID
-                let chamadaId = null;
-                if (result.data.chamada?.id) chamadaId = result.data.chamada.id;
-                else if (result.data.id) chamadaId = result.data.id;
-                else if (result.chamada?.id) chamadaId = result.chamada.id;
-                chamadaId = parseInt(chamadaId);
-                console.log('ID extraído (verificado):', chamadaId);
-
-                if (isNaN(chamadaId) || chamadaId <= 0) {
-                    console.error('ID inválido. Objeto chamada:', result.data.chamada);
-                    exibirAlerta('ID da chamada inválido. Contate o administrador.', 'danger');
-                    msgSpan.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Já existe chamada para ${dataFormatada}, mas erro no ID.`;
-                    alertDiv.classList.remove('d-none');
-                    if (btnEditar) btnEditar.style.display = 'none';
+                const chamadaId = result.data.chamada?.id || result.data.id;
+                if (!chamadaId || isNaN(parseInt(chamadaId))) {
+                    exibirAlerta('ID inválido. Contate o administrador.', 'danger');
+                    alertDiv.classList.add('d-none');
                     hideLoading();
                     return;
                 }
-
+                const idNum = parseInt(chamadaId);
                 msgSpan.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i> Já existe uma chamada para ${dataFormatada} nesta classe.`;
                 alertDiv.classList.remove('d-none');
                 if (btnEditar) {
                     btnEditar.style.display = 'inline-flex';
-                    const editUrl = `editar.php?id=${chamadaId}`;
+                    const urlEditar = `editar.php?id=${idNum}`;
                     btnEditar.onclick = (e) => {
                         e.preventDefault();
-                        window.location.href = editUrl;
+                        window.location.href = urlEditar;
                     };
                 }
             } 
             else if (result.status === 'success' && result.data?.existe === false) {
-                msgSpan.innerHTML = `<i class="fas fa-check-circle me-2"></i> Nenhuma chamada encontrada para esta data. Pode registrar nova.`;
+                msgSpan.innerHTML = `<i class="fas fa-check-circle me-2"></i> Nenhuma chamada encontrada para esta data. Você pode registrar uma nova.`;
                 alertDiv.classList.remove('d-none');
                 if (btnEditar) btnEditar.style.display = 'none';
-                setTimeout(() => alertDiv.classList.add('d-none'), 3000);
+                setTimeout(() => alertDiv.classList.add('d-none'), 4000);
             } 
             else {
-                exibirAlerta('Erro na verificação: ' + (result.message || 'Resposta inesperada'), 'danger');
+                exibirAlerta('Erro ao verificar: ' + (result.message || 'Resposta inesperada'), 'danger');
             }
         } catch (error) {
             console.error('Erro na verificação:', error);
@@ -348,7 +341,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await res.json();
             if (result.status === 'success') {
                 exibirAlerta(result.message || 'Chamada salva!', 'success');
-                // limpa ofertas, visitantes etc.
                 const oferta = document.getElementById('ofertaClasse');
                 const visit = document.getElementById('totalVisitantes');
                 const biblias = document.getElementById('totalBiblias');

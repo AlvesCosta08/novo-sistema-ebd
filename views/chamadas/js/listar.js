@@ -314,15 +314,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let html = '';
         lista.forEach(chamada => {
-            let dataFormatada = chamada.data;
-            try {
-                const [ano, mes, dia] = chamada.data.split('-');
+            let dataFormatada = chamada.data || '';
+            if (dataFormatada) {
+                const [ano, mes, dia] = dataFormatada.split('-');
                 dataFormatada = `${dia}/${mes}/${ano}`;
-            } catch(e) {}
+            }
             
-            let trimestreExibicao = chamada.trimestre;
-            if (chamada.trimestre && chamada.trimestre.match(/^\d{4}-T[1-4]$/)) {
-                const [ano, t] = chamada.trimestre.split('-T');
+            let trimestreExibicao = chamada.trimestre || '';
+            if (trimestreExibicao && trimestreExibicao.match(/^\d{4}-T[1-4]$/)) {
+                const [ano, t] = trimestreExibicao.split('-T');
                 trimestreExibicao = `${ano} - ${t}º Trim.`;
             }
             
@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch(BASE_URL, {
                 method: 'POST',
-                headers: { 'Content-Type':application/json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ acao: 'getChamada', chamada_id: parseInt(id) })
             });
             const result = await response.json();
@@ -491,15 +491,15 @@ document.addEventListener('DOMContentLoaded', function() {
             alunosHtml = '<p class="text-muted text-center">Nenhum aluno registrado nesta chamada.</p>';
         }
         
-        let dataFormatada = chamada.data;
-        try {
-            const [ano, mes, dia] = chamada.data.split('-');
+        let dataFormatada = chamada.data || '';
+        if (dataFormatada) {
+            const [ano, mes, dia] = dataFormatada.split('-');
             dataFormatada = `${dia}/${mes}/${ano}`;
-        } catch(e) {}
+        }
         
-        let trimestreExibicao = chamada.trimestre;
-        if (chamada.trimestre && chamada.trimestre.match(/^\d{4}-T[1-4]$/)) {
-            const [ano, t] = chamada.trimestre.split('-T');
+        let trimestreExibicao = chamada.trimestre || '';
+        if (trimestreExibicao && trimestreExibicao.match(/^\d{4}-T[1-4]$/)) {
+            const [ano, t] = trimestreExibicao.split('-T');
             trimestreExibicao = `${ano} - ${t}º Trimestre`;
         }
         
@@ -556,15 +556,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const headers = ['Data', 'Congregação', 'Classe', 'Professor', 'Trimestre', 'Presentes', 'Ausentes', 'Justificados', 'Oferta'];
         const rows = dadosChamadas.map(chamada => {
-            let dataFormatada = chamada.data;
-            try {
-                const [ano, mes, dia] = chamada.data.split('-');
+            let dataFormatada = chamada.data || '';
+            if (dataFormatada) {
+                const [ano, mes, dia] = dataFormatada.split('-');
                 dataFormatada = `${dia}/${mes}/${ano}`;
-            } catch(e) {}
+            }
             
-            let trimestreExibicao = chamada.trimestre;
-            if (chamada.trimestre && chamada.trimestre.match(/^\d{4}-T[1-4]$/)) {
-                const [ano, t] = chamada.trimestre.split('-T');
+            let trimestreExibicao = chamada.trimestre || '';
+            if (trimestreExibicao && trimestreExibicao.match(/^\d{4}-T[1-4]$/)) {
+                const [ano, t] = trimestreExibicao.split('-T');
                 trimestreExibicao = `${ano} - ${t}º Trim.`;
             }
             return [

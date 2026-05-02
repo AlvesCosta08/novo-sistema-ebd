@@ -63,7 +63,7 @@ $anoAtual = date('Y');
         </div>
     </div>
 
-    <!-- Card de Filtros -->
+    <!-- Card de Filtros - VERSÃO SIMPLIFICADA E CORRIGIDA -->
     <div class="modern-card mb-4" data-aos="fade-up" data-aos-delay="100">
         <div class="card-header-modern bg-primary">
             <h5 class="mb-0 text-white">
@@ -71,11 +71,11 @@ $anoAtual = date('Y');
             </h5>
         </div>
         <div class="card-body p-4">
-            <div class="row g-4">
-                <div class="col-12 col-md-3">
-                    <label class="form-label">
-                        <i class="fas fa-church me-2 text-primary"></i>
-                        <span class="fw-semibold">Congregação</span>
+            <!-- Linha 1 -->
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-church me-1 text-primary"></i> Congregação
                     </label>
                     <select id="filtroCongregacao" class="form-select" <?= $perfil !== 'admin' ? 'disabled' : '' ?>>
                         <option value="">Todas as congregações</option>
@@ -85,20 +85,18 @@ $anoAtual = date('Y');
                     <?php endif; ?>
                 </div>
 
-                <div class="col-12 col-md-3">
-                    <label class="form-label">
-                        <i class="fas fa-users me-2 text-primary"></i>
-                        <span class="fw-semibold">Classe</span>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-users me-1 text-primary"></i> Classe
                     </label>
                     <select id="filtroClasse" class="form-select" disabled>
                         <option value="">Todas as classes</option>
                     </select>
                 </div>
 
-                <div class="col-6 col-md-2">
-                    <label class="form-label">
-                        <i class="fas fa-calendar me-2 text-primary"></i>
-                        <span class="fw-semibold">Ano</span>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-calendar me-1 text-primary"></i> Ano
                     </label>
                     <select id="filtroAno" class="form-select">
                         <?php for ($ano = $anoAtual - 2; $ano <= $anoAtual + 1; $ano++): ?>
@@ -107,10 +105,9 @@ $anoAtual = date('Y');
                     </select>
                 </div>
 
-                <div class="col-6 col-md-2">
-                    <label class="form-label">
-                        <i class="fas fa-chart-line me-2 text-primary"></i>
-                        <span class="fw-semibold">Trimestre</span>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-chart-line me-1 text-primary"></i> Trimestre
                     </label>
                     <select id="filtroTrimestre" class="form-select">
                         <option value="">Todos</option>
@@ -121,24 +118,47 @@ $anoAtual = date('Y');
                     </select>
                 </div>
 
-                <div class="col-12 col-md-2">
-                    <label class="form-label">
-                        <i class="fas fa-calendar-week me-2 text-primary"></i>
-                        <span class="fw-semibold">Período</span>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-calendar-week me-1 text-primary"></i> Data Início
                     </label>
-                    <div class="d-flex gap-2">
-                        <input type="date" id="filtroDataInicio" class="form-control" placeholder="Início">
-                        <input type="date" id="filtroDataFim" class="form-control" placeholder="Fim">
-                    </div>
+                    <input type="date" id="filtroDataInicio" class="form-control">
                 </div>
             </div>
 
-            <div class="row mt-4">
+            <!-- Linha 2 -->
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <!-- Espaço vazio para alinhamento -->
+                </div>
+
+                <div class="col-md-3 mb-3">
+                    <!-- Espaço vazio para alinhamento -->
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <!-- Espaço vazio para alinhamento -->
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <!-- Espaço vazio para alinhamento -->
+                </div>
+
+                <div class="col-md-2 mb-3">
+                    <label class="form-label fw-semibold">
+                        <i class="fas fa-calendar-week me-1 text-primary"></i> Data Fim
+                    </label>
+                    <input type="date" id="filtroDataFim" class="form-control">
+                </div>
+            </div>
+
+            <!-- Linha 3 - Botões -->
+            <div class="row mt-2">
                 <div class="col-12">
                     <button type="button" id="btnFiltrar" class="btn btn-modern btn-modern-primary">
                         <i class="fas fa-search me-2"></i> Filtrar
                     </button>
-                    <button type="button" id="btnLimparFiltros" class="btn btn-modern btn-modern-secondary ms-2">
+                    <button type="button" id="btnLimparFiltros" class="btn btn-modern btn-outline-secondary ms-2">
                         <i class="fas fa-undo-alt me-2"></i> Limpar
                     </button>
                     <button type="button" id="btnExportarCSV" class="btn btn-modern btn-outline-success ms-2">
@@ -152,40 +172,40 @@ $anoAtual = date('Y');
 
     <!-- Cards de Estatísticas -->
     <div class="row g-4 mb-4" data-aos="fade-up" data-aos-delay="200">
-        <div class="col-6 col-md-3">
-            <div class="modern-card text-center p-3">
-                <div class="stat-icon bg-primary bg-opacity-10 rounded-circle mx-auto mb-2" style="width: 50px; height: 50px; line-height: 50px;">
+        <div class="col-sm-6 col-md-3">
+            <div class="modern-card text-center p-3 h-100">
+                <div class="stat-icon bg-primary bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
                     <i class="fas fa-clipboard-list fa-2x text-primary"></i>
                 </div>
-                <h3 id="totalChamadas" class="mb-0">0</h3>
-                <p class="text-muted mb-0">Total de Chamadas</p>
+                <h3 id="totalChamadas" class="mb-0 fs-2 fw-bold">0</h3>
+                <p class="text-muted mb-0 small">Total de Chamadas</p>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="modern-card text-center p-3">
-                <div class="stat-icon bg-success bg-opacity-10 rounded-circle mx-auto mb-2" style="width: 50px; height: 50px; line-height: 50px;">
+        <div class="col-sm-6 col-md-3">
+            <div class="modern-card text-center p-3 h-100">
+                <div class="stat-icon bg-success bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
                     <i class="fas fa-user-check fa-2x text-success"></i>
                 </div>
-                <h3 id="totalPresencas" class="mb-0">0</h3>
-                <p class="text-muted mb-0">Total de Presenças</p>
+                <h3 id="totalPresencas" class="mb-0 fs-2 fw-bold">0</h3>
+                <p class="text-muted mb-0 small">Total de Presenças</p>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="modern-card text-center p-3">
-                <div class="stat-icon bg-info bg-opacity-10 rounded-circle mx-auto mb-2" style="width: 50px; height: 50px; line-height: 50px;">
+        <div class="col-sm-6 col-md-3">
+            <div class="modern-card text-center p-3 h-100">
+                <div class="stat-icon bg-info bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
                     <i class="fas fa-chart-line fa-2x text-info"></i>
                 </div>
-                <h3 id="mediaPresenca" class="mb-0">0%</h3>
-                <p class="text-muted mb-0">Média de Presença</p>
+                <h3 id="mediaPresenca" class="mb-0 fs-2 fw-bold">0<small class="fs-6">%</small></h3>
+                <p class="text-muted mb-0 small">Média de Presença</p>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="modern-card text-center p-3">
-                <div class="stat-icon bg-warning bg-opacity-10 rounded-circle mx-auto mb-2" style="width: 50px; height: 50px; line-height: 50px;">
+        <div class="col-sm-6 col-md-3">
+            <div class="modern-card text-center p-3 h-100">
+                <div class="stat-icon bg-warning bg-opacity-10 rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
                     <i class="fas fa-dollar-sign fa-2x text-warning"></i>
                 </div>
-                <h3 id="totalOfertas" class="mb-0">R$ 0,00</h3>
-                <p class="text-muted mb-0">Total em Ofertas</p>
+                <h3 id="totalOfertas" class="mb-0 fs-2 fw-bold">R$ 0,00</h3>
+                <p class="text-muted mb-0 small">Total em Ofertas</p>
             </div>
         </div>
     </div>
@@ -199,12 +219,14 @@ $anoAtual = date('Y');
         </div>
         <div class="card-body p-0">
             <div id="loadingIndicator" class="text-center py-5 d-none">
-                <div class="spinner-border text-primary mb-2" role="status"></div>
+                <div class="spinner-border text-primary mb-2" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
                 <p class="text-muted">Carregando chamadas...</p>
             </div>
             <div class="table-responsive">
-                <table class="custom-table mb-0">
-                    <thead>
+                <table class="table custom-table mb-0">
+                    <thead class="table-light">
                         <tr>
                             <th>Data</th>
                             <th>Congregação</th>
@@ -232,7 +254,7 @@ $anoAtual = date('Y');
     </div>
 </div>
 
-<!-- Modal de Detalhes -->
+<!-- Modais -->
 <div class="modal fade" id="modalDetalhes" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -242,9 +264,7 @@ $anoAtual = date('Y');
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="modalDetalhesBody">
-                <!-- Conteúdo carregado via JS -->
-            </div>
+            <div class="modal-body" id="modalDetalhesBody"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i> Fechar
@@ -254,7 +274,6 @@ $anoAtual = date('Y');
     </div>
 </div>
 
-<!-- Modal de Exclusão -->
 <div class="modal fade" id="modalExcluir" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -281,7 +300,6 @@ $anoAtual = date('Y');
     </div>
 </div>
 
-<!-- Container para Toasts -->
 <div class="toast-container" id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
 
 <style>
@@ -293,6 +311,24 @@ $anoAtual = date('Y');
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
+}
+/* Garantir que os campos de data apareçam corretamente */
+input[type="date"] {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--gray-700);
+    background-color: #fff;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+input[type="date"]:focus {
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
 }
 </style>
 

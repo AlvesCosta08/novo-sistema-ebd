@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 `;
             });
         } else {
-            alunosHtml = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno registrado nesta chamada.</td></tr>`;
+            alunosHtml = `<td><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno registrado nesta chamada.</td></tr>`;
         }
         
         const podeEditarTrimestre = USUARIO_PERFIL === 'admin' ? '' : 'readonly disabled';

@@ -1,40 +1,35 @@
-// matricula.js - Gerenciamento de Matrículas (VERSÃO CORRIGIDA)
+// matricula.js - Versão corrigida com estatísticas corretas
 
 $(document).ready(function() {
-    // Verificar se os modals existem antes de inicializar
-    const modalMatriculaEl = document.getElementById('modalMatricula');
-    const modalExcluirEl = document.getElementById('modalExcluir');
-    const modalMigracaoEl = document.getElementById('modalMigracao');
+    console.log('matricula.js carregado - jQuery versão:', $.fn.jquery);
     
-    let modalMatricula = modalMatriculaEl ? new bootstrap.Modal(modalMatriculaEl) : null;
-    let modalExcluir = modalExcluirEl ? new bootstrap.Modal(modalExcluirEl) : null;
-    let modalMigracao = modalMigracaoEl ? new bootstrap.Modal(modalMigracaoEl) : null;
+    // Verificar se os elementos do modal existem
+    let modalMatricula = null;
+    let modalExcluir = null;
+    let modalMigracao = null;
+    
+    if (document.getElementById('modalMatricula')) {
+        modalMatricula = new bootstrap.Modal(document.getElementById('modalMatricula'));
+    } else {
+        console.error('Modal modalMatricula não encontrado');
+    }
+    
+    if (document.getElementById('modalExcluir')) {
+        modalExcluir = new bootstrap.Modal(document.getElementById('modalExcluir'));
+    } else {
+        console.error('Modal modalExcluir não encontrado');
+    }
+    
+    if (document.getElementById('modalMigracao')) {
+        modalMigracao = new bootstrap.Modal(document.getElementById('modalMigracao'));
+    } else {
+        console.error('Modal modalMigracao não encontrado');
+    }
+    
+    let matriculaIdParaExcluir = null;
     let dataTable = null;
-    let matriculaIdParaExcluir = null; // CORREÇÃO: Declarada globalmente
-
-    // Carregar selects
-    carregarSelects();
-
-    // Inicializar DataTable
-    inicializarDataTable();
-
-    // Eventos - Verificar se os elementos existem
-    $('#btnSalvarMatricula').on('click', salvarMatricula);
-    $('#btnConfirmarExcluir').on('click', excluirMatricula);
-    $('#btnMigrar').on('click', migrarMatriculas);
     
-    $('#btnFiltrar').on('click', function() {
-        if (dataTable) dataTable.ajax.reload();
-    });
-    
-    $('#filtroBusca').on('keypress', function(e) {
-        if (e.which === 13 && dataTable) {
-            dataTable.ajax.reload();
-        }
-    });
-
-    // ==================== FUNÇÕES AUXILIARES ====================
-    
+    // Função de toast
     function exibirToast(mensagem, tipo = 'success') {
         let toastContainer = document.getElementById('toastContainer');
         if (!toastContainer) {
@@ -52,173 +47,147 @@ $(document).ready(function() {
         toastEl.setAttribute('role', 'alert');
         toastEl.style.minWidth = '300px';
         toastEl.style.marginBottom = '10px';
-        toastEl.style.borderRadius = '8px';
-        
-        const icon = tipo === 'success' ? 'check-circle' : 
-                     tipo === 'danger' ? 'exclamation-triangle' : 'info-circle';
-        
         toastEl.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">
-                    <i class="fas fa-${icon} me-2"></i>
+                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
                     ${mensagem}
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         `;
-        
         toastContainer.appendChild(toastEl);
-        
         setTimeout(() => {
             toastEl.classList.remove('show');
             setTimeout(() => toastEl.remove(), 300);
         }, 4000);
     }
-
-    function showLoading() {
-        let overlay = document.getElementById('globalLoading');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'globalLoading';
-            overlay.className = 'loading-overlay';
-            overlay.innerHTML = '<div class="spinner-custom"></div>';
-            document.body.appendChild(overlay);
-        }
-        overlay.style.display = 'flex';
-    }
-
-    function hideLoading() {
-        const overlay = document.getElementById('globalLoading');
-        if (overlay) overlay.style.display = 'none';
-    }
-
+    
     function escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-
-    // ==================== FUNÇÕES PRINCIPAIS ====================
     
-    function carregarSelects() {
-        showLoading();
+    // ==================== FUNÇÃO PARA BUSCAR ESTATÍSTICAS REAIS ====================
+    function buscarEstatisticas() {
+        console.log('Buscando estatísticas do servidor...');
         
+        $.ajax({
+            url: BASE_URL,
+            method: 'POST',
+            data: { 
+                acao: 'getEstatisticas'
+            },
+            dataType: 'json',
+            success: function(response) {
+                console.log('Estatísticas recebidas:', response);
+                if (response.sucesso && response.dados) {
+                    $('#totalMatriculas').text(response.dados.total_matriculas || 0);
+                    $('#matriculasAtivas').text(response.dados.ativos || 0);
+                    $('#matriculasInativas').text((response.dados.total_matriculas || 0) - (response.dados.ativos || 0));
+                } else {
+                    console.error('Erro ao buscar estatísticas:', response.mensagem);
+                }
+            },
+            error: function(xhr) {
+                console.error('Erro na requisição de estatísticas:', xhr);
+            }
+        });
+    }
+    
+    // Carregar selects
+    function carregarSelects() {
+        console.log('Carregando selects...');
         $.ajax({
             url: BASE_URL,
             method: 'POST',
             data: { acao: 'carregarSelects' },
             dataType: 'json',
-            timeout: 30000,
             success: function(response) {
-                hideLoading();
+                console.log('Selects carregados:', response);
                 if (response.sucesso) {
                     const dados = response.dados;
                     
-                    // Alunos
-                    if ($('#alunoId').length) {
-                        $('#alunoId').empty().append('<option value="">Selecione um aluno...</option>');
-                        if (dados.alunos && dados.alunos.length) {
-                            dados.alunos.forEach(aluno => {
-                                $('#alunoId').append(`<option value="${aluno.id}">${escapeHtml(aluno.nome)}</option>`);
-                            });
-                        }
+                    $('#alunoId').empty().append('<option value="">Selecione um aluno...</option>');
+                    if (dados.alunos && dados.alunos.length) {
+                        dados.alunos.forEach(aluno => {
+                            $('#alunoId').append(`<option value="${aluno.id}">${escapeHtml(aluno.nome)}</option>`);
+                        });
                     }
                     
-                    // Classes
-                    if ($('#classeId').length) {
-                        $('#classeId').empty().append('<option value="">Selecione uma classe...</option>');
-                        if (dados.classes && dados.classes.length) {
-                            dados.classes.forEach(classe => {
-                                $('#classeId').append(`<option value="${classe.id}">${escapeHtml(classe.nome)}</option>`);
-                            });
-                        }
+                    $('#classeId').empty().append('<option value="">Selecione uma classe...</option>');
+                    if (dados.classes && dados.classes.length) {
+                        dados.classes.forEach(classe => {
+                            $('#classeId').append(`<option value="${classe.id}">${escapeHtml(classe.nome)}</option>`);
+                        });
                     }
                     
-                    // Congregações
-                    if ($('#congregacaoId').length) {
-                        $('#congregacaoId').empty().append('<option value="">Selecione uma congregação...</option>');
-                        if (dados.congregacoes && dados.congregacoes.length) {
-                            dados.congregacoes.forEach(cong => {
-                                $('#congregacaoId').append(`<option value="${cong.id}">${escapeHtml(cong.nome)}</option>`);
-                            });
-                            
-                            if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && typeof USUARIO_CONGR_ID !== 'undefined' && USUARIO_CONGR_ID) {
-                                $('#congregacaoId').val(USUARIO_CONGR_ID);
-                                $('#congregacaoId').prop('disabled', true);
-                            }
-                        }
+                    $('#congregacaoId').empty().append('<option value="">Selecione uma congregação...</option>');
+                    if (dados.congregacoes && dados.congregacoes.length) {
+                        dados.congregacoes.forEach(cong => {
+                            $('#congregacaoId').append(`<option value="${cong.id}">${escapeHtml(cong.nome)}</option>`);
+                        });
                     }
                     
-                    console.log('Selects carregados com sucesso!');
-                    
-                    // Carregar trimestres após selects
-                    gerarTrimestres();
-                } else {
-                    exibirToast('Erro ao carregar dados: ' + (response.mensagem || 'Erro desconhecido'), 'danger');
+                    if (USUARIO_PERFIL !== 'admin' && USUARIO_CONGR_ID) {
+                        $('#congregacaoId').val(USUARIO_CONGR_ID).prop('disabled', true);
+                    }
                 }
             },
-            error: function(xhr, status, error) {
-                hideLoading();
-                console.error('Erro carregarSelects:', status, error);
-                exibirToast('Erro ao carregar dados dos selects.', 'danger');
+            error: function(xhr) {
+                console.error('Erro carregarSelects:', xhr);
             }
         });
     }
-
-    function gerarTrimestres() {
+    
+    // Carregar trimestres
+    function carregarTrimestres() {
+        console.log('Carregando trimestres...');
         $.ajax({
             url: BASE_URL,
             method: 'POST',
             data: { acao: 'getTrimestresSugeridos' },
             dataType: 'json',
-            timeout: 30000,
             success: function(response) {
+                console.log('Trimestres carregados:', response);
                 if (response.sucesso && response.dados) {
                     const select = $('#trimestre');
-                    if (select.length) {
-                        select.empty().append('<option value="">Selecione o trimestre...</option>');
-                        response.dados.forEach(trim => {
-                            select.append(`<option value="${trim.valor}">${trim.label}</option>`);
-                        });
-                        
-                        // Selecionar trimestre atual se as variáveis existirem
-                        if (typeof ANO_ATUAL !== 'undefined' && typeof TRIMESTRE_ATUAL !== 'undefined') {
-                            const trimAtual = `${ANO_ATUAL}-T${TRIMESTRE_ATUAL}`;
-                            select.val(trimAtual);
-                        }
-                    }
+                    select.empty().append('<option value="">Selecione o trimestre...</option>');
+                    response.dados.forEach(trim => {
+                        select.append(`<option value="${trim.valor}">${trim.label}</option>`);
+                    });
                     
                     const selectFiltro = $('#filtroTrimestre');
-                    if (selectFiltro.length) {
-                        selectFiltro.empty().append('<option value="">Todos</option>');
-                        response.dados.forEach(trim => {
-                            selectFiltro.append(`<option value="${trim.valor}">${trim.label}</option>`);
-                        });
-                    }
+                    selectFiltro.empty().append('<option value="">Todos</option>');
+                    response.dados.forEach(trim => {
+                        selectFiltro.append(`<option value="${trim.valor}">${trim.label}</option>`);
+                    });
                     
-                    console.log('Trimestres carregados com sucesso!');
-                } else {
-                    exibirToast('Erro ao carregar trimestres.', 'warning');
+                    const trimAtual = `${ANO_ATUAL}-T${TRIMESTRE_ATUAL}`;
+                    select.val(trimAtual);
                 }
             },
-            error: function(xhr, status, error) {
-                console.error('Erro gerarTrimestres:', status, error);
-                exibirToast('Erro ao carregar trimestres.', 'danger');
+            error: function(xhr) {
+                console.error('Erro carregarTrimestres:', xhr);
             }
         });
     }
-
+    
+    // Inicializar DataTable
     function inicializarDataTable() {
+        console.log('Inicializando DataTable...');
+        
         // Verificar se a tabela existe
-        if (!$('#tabelaMatriculas').length || !$.fn.DataTable) {
-            console.error('Tabela ou DataTable não disponível');
+        if ($('#tabelaMatriculas').length === 0) {
+            console.error('Tabela #tabelaMatriculas não encontrada');
             return;
         }
         
+        // Destruir DataTable existente se houver
         if ($.fn.DataTable.isDataTable('#tabelaMatriculas')) {
-            dataTable = $('#tabelaMatriculas').DataTable();
-            dataTable.destroy();
+            $('#tabelaMatriculas').DataTable().destroy();
         }
         
         dataTable = $('#tabelaMatriculas').DataTable({
@@ -229,53 +198,31 @@ $(document).ready(function() {
                 type: 'POST',
                 data: function(d) {
                     d.acao = 'listarMatriculas';
-                    if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && typeof USUARIO_CONGR_ID !== 'undefined') {
-                        d.congregacao = USUARIO_CONGR_ID;
-                    } else {
-                        d.congregacao = '';
-                    }
-                    d.status = $('#filtroStatus').val() || '';
-                    d.trimestre = $('#filtroTrimestre').val() || '';
+                    d.congregacao = USUARIO_PERFIL !== 'admin' ? USUARIO_CONGR_ID : '';
+                    d.status = $('#filtroStatus').val();
+                    d.trimestre = $('#filtroTrimestre').val();
                     if ($('#filtroBusca').val()) {
                         d.search = { value: $('#filtroBusca').val() };
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.error('Erro DataTable AJAX:', status, error);
-                    exibirToast('Erro ao carregar matrículas.', 'danger');
+                dataSrc: function(json) {
+                    console.log('DataTable response:', json);
+                    if (json.sucesso && json.dados) {
+                        return json.dados;
+                    }
+                    return [];
+                },
+                error: function(xhr) {
+                    console.error('Erro DataTable AJAX:', xhr);
+                    exibirToast('Erro ao carregar matrículas', 'danger');
                 }
             },
             columns: [
-                { 
-                    data: 'id',
-                    render: function(data) {
-                        return `<span style="background: #f0f0f0; padding: 0.25rem 0.5rem; border-radius: 8px;">#${data}</span>`;
-                    }
-                },
-                { 
-                    data: 'aluno',
-                    render: function(data) {
-                        return `<i class="fas fa-user-graduate me-2" style="color: #4f46e5;"></i>${escapeHtml(data)}</span>`;
-                    }
-                },
-                { 
-                    data: 'classe',
-                    render: function(data) {
-                        return `<i class="fas fa-chalkboard-user me-2" style="color: #10b981;"></i>${escapeHtml(data)}</span>`;
-                    }
-                },
-                { 
-                    data: 'congregacao',
-                    render: function(data) {
-                        return `<i class="fas fa-church me-2" style="color: #4f46e5;"></i>${escapeHtml(data)}</span>`;
-                    }
-                },
-                { 
-                    data: 'trimestre',
-                    render: function(data) {
-                        return `<span style="background: #e0e7ff; padding: 0.25rem 0.5rem; border-radius: 8px;">${escapeHtml(data)}</span>`;
-                    }
-                },
+                { data: 'id' },
+                { data: 'aluno' },
+                { data: 'classe' },
+                { data: 'congregacao' },
+                { data: 'trimestre' },
                 { 
                     data: 'data_matricula',
                     render: function(data) {
@@ -286,11 +233,9 @@ $(document).ready(function() {
                 { 
                     data: 'status',
                     render: function(data) {
-                        if (data === 'ativo') {
-                            return '<span class="badge-status-ativo"><i class="fas fa-check-circle me-1"></i> Ativo</span>';
-                        } else {
-                            return '<span class="badge-status-inativo"><i class="fas fa-times-circle me-1"></i> Inativo</span>';
-                        }
+                        return data === 'ativo' 
+                            ? '<span class="badge-status-ativo"><i class="fas fa-check-circle me-1"></i> Ativo</span>'
+                            : '<span class="badge-status-inativo"><i class="fas fa-times-circle me-1"></i> Inativo</span>';
                     }
                 },
                 {
@@ -299,119 +244,97 @@ $(document).ready(function() {
                     orderable: false,
                     render: function(data) {
                         return `
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-outline-primary btn-editar" data-id="${data.id}" title="Editar">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-outline-danger btn-excluir" data-id="${data.id}" title="Excluir">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>
+                            <button class="btn btn-sm btn-outline-primary btn-editar me-1" data-id="${data.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-excluir" data-id="${data.id}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         `;
                     }
                 }
             ],
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json',
-                processing: "Carregando..."
+                url: '//cdn.datatables.net/plug-ins/2.2.2/i18n/pt-BR.json'
             },
             order: [[0, 'desc']],
             pageLength: 10,
-            lengthMenu: [5, 10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
             drawCallback: function() {
-                // CORREÇÃO: Usar event delegation ou re-attach após cada draw
-                $('.btn-editar').off('click').on('click', function() {
-                    const id = $(this).data('id');
-                    if (id) editarMatricula(id);
-                });
-                $('.btn-excluir').off('click').on('click', function() {
-                    matriculaIdParaExcluir = $(this).data('id');
-                    if (modalExcluir) modalExcluir.show();
-                });
-                atualizarEstatisticas();
+                // Não atualizar estatísticas aqui - usar dados do servidor
+                console.log('DrawCallback executado');
             }
         });
-    }
-
-    function atualizarEstatisticas() {
-        if (!dataTable) return;
         
-        const data = dataTable.rows().data();
-        let total = data.length;
-        let ativas = 0;
-        
-        data.each(function(row) {
-            if (row.status === 'ativo') ativas++;
+        // Event delegation para os botões (funciona mesmo após redraw)
+        $('#tabelaMatriculas').off('click', '.btn-editar').on('click', '.btn-editar', function() {
+            const id = $(this).data('id');
+            editarMatricula(id);
         });
         
-        $('#totalMatriculas').text(total);
-        $('#matriculasAtivas').text(ativas);
-        $('#matriculasInativas').text(total - ativas);
+        $('#tabelaMatriculas').off('click', '.btn-excluir').on('click', '.btn-excluir', function() {
+            matriculaIdParaExcluir = $(this).data('id');
+            if (modalExcluir) modalExcluir.show();
+        });
+        
+        // Buscar estatísticas após carregar os dados
+        dataTable.on('xhr.dt', function(e, settings, json, xhr) {
+            console.log('DataTable XHR completo');
+            buscarEstatisticas();
+        });
     }
-
+    
+    // Funções CRUD
     function salvarMatricula() {
         const id = $('#matriculaId').val();
         const dados = {
             aluno_id: $('#alunoId').val(),
             classe_id: $('#classeId').val(),
             congregacao_id: $('#congregacaoId').val(),
-            professor_id: typeof USUARIO_ID !== 'undefined' ? USUARIO_ID : 0,
+            professor_id: USUARIO_ID,
             trimestre: $('#trimestre').val(),
             status: $('#status').val(),
-            data_matricula: $('#dataMatricula').val() || new Date().toISOString().split('T')[0]
+            data_matricula: $('#dataMatricula').val()
         };
         
         if (!dados.aluno_id || !dados.classe_id || !dados.congregacao_id || !dados.trimestre) {
-            exibirToast('Preencha todos os campos obrigatórios.', 'warning');
+            exibirToast('Preencha todos os campos obrigatórios', 'warning');
             return;
         }
         
         const acao = id ? 'atualizarMatricula' : 'criarMatricula';
         if (id) dados.id = id;
         
-        showLoading();
-        
         $.ajax({
             url: BASE_URL,
             method: 'POST',
             data: { ...dados, acao: acao },
             dataType: 'json',
-            timeout: 30000,
             success: function(response) {
-                hideLoading();
                 if (response.sucesso) {
                     exibirToast(response.mensagem, 'success');
                     if (modalMatricula) modalMatricula.hide();
                     if (dataTable) dataTable.ajax.reload();
+                    buscarEstatisticas(); // Atualizar estatísticas
                     limparFormulario();
                 } else {
-                    exibirToast(response.mensagem || 'Erro ao salvar matrícula.', 'danger');
+                    exibirToast(response.mensagem, 'danger');
                 }
             },
-            error: function(xhr, status, error) {
-                hideLoading();
-                console.error('Erro salvarMatricula:', status, error);
-                exibirToast('Erro ao salvar matrícula.', 'danger');
+            error: function(xhr) {
+                console.error('Erro salvarMatricula:', xhr);
+                exibirToast('Erro ao salvar matrícula', 'danger');
             }
         });
     }
-
+    
     function editarMatricula(id) {
-        if (!id) {
-            exibirToast('ID da matrícula inválido.', 'warning');
-            return;
-        }
-        
-        showLoading();
-        
         $.ajax({
             url: BASE_URL,
             method: 'POST',
             data: { acao: 'buscarMatricula', id: id },
             dataType: 'json',
-            timeout: 30000,
             success: function(response) {
-                hideLoading();
                 if (response.sucesso && response.dados) {
                     const dados = response.dados;
                     $('#matriculaId').val(dados.id);
@@ -424,76 +347,55 @@ $(document).ready(function() {
                     $('#modalTitle').text('Editar Matrícula');
                     if (modalMatricula) modalMatricula.show();
                 } else {
-                    exibirToast(response.mensagem || 'Matrícula não encontrada.', 'danger');
+                    exibirToast(response.mensagem || 'Matrícula não encontrada', 'danger');
                 }
             },
-            error: function(xhr, status, error) {
-                hideLoading();
-                console.error('Erro editarMatricula:', status, error);
-                exibirToast('Erro ao buscar matrícula.', 'danger');
+            error: function(xhr) {
+                console.error('Erro editarMatricula:', xhr);
+                exibirToast('Erro ao buscar matrícula', 'danger');
             }
         });
     }
-
+    
     function excluirMatricula() {
-        if (!matriculaIdParaExcluir) {
-            exibirToast('Nenhuma matrícula selecionada para exclusão.', 'warning');
-            return;
-        }
-        
-        showLoading();
+        if (!matriculaIdParaExcluir) return;
         
         $.ajax({
             url: BASE_URL,
             method: 'POST',
             data: { acao: 'excluirMatricula', id: matriculaIdParaExcluir },
             dataType: 'json',
-            timeout: 30000,
             success: function(response) {
-                hideLoading();
                 if (response.sucesso) {
                     exibirToast(response.mensagem, 'success');
                     if (dataTable) dataTable.ajax.reload();
+                    buscarEstatisticas(); // Atualizar estatísticas
                     if (modalExcluir) modalExcluir.hide();
                     matriculaIdParaExcluir = null;
                 } else {
-                    exibirToast(response.mensagem || 'Erro ao excluir matrícula.', 'danger');
+                    exibirToast(response.mensagem, 'danger');
                 }
             },
-            error: function(xhr, status, error) {
-                hideLoading();
-                console.error('Erro excluirMatricula:', status, error);
-                exibirToast('Erro ao excluir matrícula.', 'danger');
+            error: function(xhr) {
+                console.error('Erro excluirMatricula:', xhr);
+                exibirToast('Erro ao excluir matrícula', 'danger');
             }
         });
     }
-
+    
     function migrarMatriculas() {
-        let trimestreOrigem = $('#trimestreOrigem').val();
+        const trimestreOrigem = $('#trimestreOrigem').val();
         const trimestreDestino = $('#trimestreDestino').val();
-        const manterStatus = $('#manterStatus').is(':checked') ? 1 : 0;
-        
-        if (!trimestreOrigem && typeof ANO_ATUAL !== 'undefined' && typeof TRIMESTRE_ATUAL !== 'undefined') {
-            trimestreOrigem = `${ANO_ATUAL}-T${TRIMESTRE_ATUAL}`;
-        }
+        const manterStatus = $('#manterStatus').is(':checked');
         
         if (!trimestreDestino) {
-            exibirToast('Informe o trimestre de destino.', 'warning');
+            exibirToast('Informe o trimestre de destino', 'warning');
             return;
         }
         
         if (!trimestreDestino.match(/^\d{4}-T[1-4]$/)) {
-            exibirToast('Formato de trimestre inválido. Use: AAAA-T1, AAAA-T2, AAAA-T3 ou AAAA-T4', 'warning');
+            exibirToast('Formato inválido. Use: AAAA-T1, AAAA-T2, AAAA-T3 ou AAAA-T4', 'warning');
             return;
-        }
-        
-        showLoading();
-        
-        let congregacaoId = '';
-        if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && typeof USUARIO_CONGR_ID !== 'undefined') {
-            congregacaoId = USUARIO_CONGR_ID;
-        } else {
-            congregacaoId = $('#congregacaoId').val() || '';
         }
         
         $.ajax({
@@ -503,62 +405,67 @@ $(document).ready(function() {
                 acao: 'migrarMatriculas',
                 trimestre_atual: trimestreOrigem,
                 novo_trimestre: trimestreDestino,
-                congregacao_id: congregacaoId,
-                manter_status: manterStatus
+                congregacao_id: USUARIO_PERFIL !== 'admin' ? USUARIO_CONGR_ID : $('#congregacaoId').val(),
+                manter_status: manterStatus ? 1 : 0
             },
             dataType: 'json',
-            timeout: 60000, // Timeout maior para migração
             success: function(response) {
-                hideLoading();
                 if (response.sucesso) {
                     exibirToast(response.mensagem, 'success');
                     if (modalMigracao) modalMigracao.hide();
                     if (dataTable) dataTable.ajax.reload();
-                    gerarTrimestres();
+                    buscarEstatisticas(); // Atualizar estatísticas
                     $('#trimestreDestino').val('');
                 } else {
-                    exibirToast(response.mensagem || 'Erro ao migrar matrículas.', 'danger');
+                    exibirToast(response.mensagem, 'danger');
                 }
             },
-            error: function(xhr, status, error) {
-                hideLoading();
-                console.error('Erro migrarMatriculas:', status, error);
-                exibirToast('Erro ao migrar matrículas.', 'danger');
+            error: function(xhr) {
+                console.error('Erro migrarMatriculas:', xhr);
+                exibirToast('Erro ao migrar matrículas', 'danger');
             }
         });
     }
-
+    
     function limparFormulario() {
         $('#matriculaId').val('');
         $('#alunoId').val('');
         $('#classeId').val('');
-        
-        if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL === 'admin') {
-            if ($('#congregacaoId').length) {
-                $('#congregacaoId').prop('disabled', false).val('');
-            }
-        } else if (typeof USUARIO_CONGR_ID !== 'undefined' && USUARIO_CONGR_ID) {
-            if ($('#congregacaoId').length) {
-                $('#congregacaoId').prop('disabled', true).val(USUARIO_CONGR_ID);
-            }
+        if (USUARIO_PERFIL === 'admin') {
+            $('#congregacaoId').prop('disabled', false).val('');
+        } else {
+            $('#congregacaoId').prop('disabled', true).val(USUARIO_CONGR_ID);
         }
-        
-        if (typeof ANO_ATUAL !== 'undefined' && typeof TRIMESTRE_ATUAL !== 'undefined') {
-            $('#trimestre').val(`${ANO_ATUAL}-T${TRIMESTRE_ATUAL}`);
-        }
+        $('#trimestre').val(`${ANO_ATUAL}-T${TRIMESTRE_ATUAL}`);
         $('#status').val('ativo');
         $('#dataMatricula').val(new Date().toISOString().split('T')[0]);
         $('#modalTitle').text('Nova Matrícula');
     }
-
-    // Eventos do modal
+    
+    // Inicialização
+    carregarSelects();
+    carregarTrimestres();
+    inicializarDataTable();
+    buscarEstatisticas(); // Buscar estatísticas iniciais
+    
+    // Eventos
+    $('#btnSalvarMatricula').on('click', salvarMatricula);
+    $('#btnConfirmarExcluir').on('click', excluirMatricula);
+    $('#btnMigrar').on('click', migrarMatriculas);
+    $('#btnFiltrar').on('click', function() {
+        if (dataTable) dataTable.ajax.reload();
+        buscarEstatisticas(); // Atualizar estatísticas ao filtrar
+    });
+    $('#filtroBusca').on('keypress', function(e) {
+        if (e.which === 13 && dataTable) {
+            dataTable.ajax.reload();
+            buscarEstatisticas(); // Atualizar estatísticas ao buscar
+        }
+    });
+    
     if (modalMatricula) {
-        $('#modalMatricula').on('show.bs.modal', function() {
-            limparFormulario();
-        }).on('hidden.bs.modal', function() {
-            limparFormulario();
-        });
+        $('#modalMatricula').on('hidden.bs.modal', limparFormulario);
     }
     
-    console.log('Script matricula.js inicializado com sucesso!');
+    console.log('Inicialização completa!');
 });

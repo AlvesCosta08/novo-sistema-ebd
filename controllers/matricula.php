@@ -8,12 +8,20 @@ require_once $base_path . '/config/conexao.php';
 require_once $base_path . '/models/matricula.php';
 require_once $base_path . '/utils/trimestre.php';
 
-global $pdo;
-if (!$pdo) {
-    http_response_code(500);
-    echo json_encode(['sucesso' => false, 'mensagem' => 'Conexão com banco de dados não estabelecida.']);
+// Garantir que a sessão está ativa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Verificar se usuário está autenticado
+if (empty($_SESSION['usuario_id'])) {
+    http_response_code(401);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Usuário não autenticado.']);
     exit;
 }
+
+// Configurar timezone
+date_default_timezone_set('America/Sao_Paulo');
 
 class MatriculaController {
     private $model;
@@ -22,17 +30,6 @@ class MatriculaController {
     public function __construct($pdo) {
         $this->model = new Matricula($pdo);
         $this->pdo = $pdo;
-        if (session_status() === PHP_SESSION_NONE) session_start();
-        
-        // VERIFICAÇÃO DE AUTENTICAÇÃO (adicione isso)
-        if (empty($_SESSION['usuario_id'])) {
-            http_response_code(401);
-            echo json_encode(['sucesso' => false, 'mensagem' => 'Usuário não autenticado.']);
-            exit;
-        }
-        
-        // Configurações de timezone (adicione)
-        date_default_timezone_set('America/Sao_Paulo');
     }
 
     private function verificarPermissaoCongregacao($congregacao_id = null) {
@@ -76,19 +73,44 @@ class MatriculaController {
     // ==================== CRIAR ====================
     public function criarMatricula($data) {
         $congregacao_id = $data['congregacao_id'] ?? null;
+        
+        // LOG PARA DEBUG
+        error_log("=== criarMatricula ===");
+        error_log("Trimestre recebido: " . ($data['trimestre'] ?? 'NULO'));
+        error_log("Aluno ID: " . ($data['aluno_id'] ?? 'NULO'));
+        
         if (!$this->verificarPermissaoCongregacao($congregacao_id)) {
             echo json_encode(['sucesso' => false, 'mensagem' => 'Sem permissão para criar matrícula nesta congregação.']);
             return;
         }
+        
         if (empty($data['aluno_id']) || empty($data['classe_id']) || empty($data['congregacao_id']) ||
             empty($data['status']) || empty($data['professor_id']) || empty($data['trimestre'])) {
             echo json_encode(['sucesso' => false, 'mensagem' => 'Todos os campos obrigatórios devem ser preenchidos.']);
             return;
         }
         
-        // CORREÇÃO: Validar se o aluno já tem matrícula ativa no mesmo trimestre
-        if ($this->model->verificarMatriculaExistenteNoMesmoTrimestre($data['aluno_id'], $data['trimestre'])) {
-            echo json_encode(['sucesso' => false, 'mensagem' => 'Este aluno já possui uma matrícula ativa neste trimestre.']);
+        // VERIFICAR APENAS NO MESMO TRIMESTRE
+        $existeMesmoTrimestre = $this->model->verificarMatriculaExistenteNoMesmoTrimestre(
+            $data['aluno_id'], 
+            $data['trimestre']
+        );
+        
+        error_log("Existe matrícula no mesmo trimestre? " . ($existeMesmoTrimestre ? "SIM" : "NÃO"));
+        
+        if ($existeMesmoTrimestre) {
+            // Buscar detalhes da matrícula existente para mensagem mais clara
+            $matriculaExistente = $this->model->buscarMatriculaPorAlunoETrimestre(
+                $data['aluno_id'], 
+                $data['trimestre']
+            );
+            
+            $mensagem = 'Este aluno já possui uma matrícula ativa neste trimestre.';
+            if ($matriculaExistente) {
+                $mensagem .= " (ID: {$matriculaExistente['id']}, Status: {$matriculaExistente['status']})";
+            }
+            
+            echo json_encode(['sucesso' => false, 'mensagem' => $mensagem]);
             return;
         }
         
@@ -250,16 +272,10 @@ class MatriculaController {
         try {
             $selects = $this->model->carregarSelects();
             
-            // Filtrar professores por congregação se não for admin
             $perfil = $_SESSION['perfil'] ?? 'professor';
             if ($perfil !== 'admin') {
                 $congregacao_id = $_SESSION['congregacao_id'] ?? null;
                 if ($congregacao_id && isset($selects['usuarios'])) {
-                    $selects['usuarios'] = array_filter($selects['usuarios'], function($usuario) use ($congregacao_id) {
-                        // Idealmente, você teria uma relação professor-congregação
-                        // Por enquanto, retorna todos
-                        return true;
-                    });
                     $selects['usuarios'] = array_values($selects['usuarios']);
                 }
             }
@@ -278,7 +294,6 @@ class MatriculaController {
             $ano_atual = date('Y');
             $trimestre_atual = getTrimestreAtual();
             
-            // Gerar trimestres anteriores (últimos 2 anos) e próximo
             for ($ano = $ano_atual - 2; $ano <= $ano_atual + 1; $ano++) {
                 for ($t = 1; $t <= 4; $t++) {
                     $trimestre = "{$ano}-T{$t}";
@@ -343,16 +358,14 @@ class MatriculaController {
         }
     }
 
-    // ==================== MIGRAR MATRÍCULAS (IMPLEMENTADO) ====================
+    // ==================== MIGRAR MATRÍCULAS ====================
     public function migrarMatriculas($trimestre_atual, $trimestre_novo, $congregacao_id, $manter_status = true) {
         try {
-            // Validar permissão
             if (!$this->verificarPermissaoCongregacao($congregacao_id)) {
                 echo json_encode(['sucesso' => false, 'mensagem' => 'Sem permissão para migrar matrículas nesta congregação.']);
                 return;
             }
             
-            // Validar parâmetros
             if (empty($trimestre_atual) || empty($trimestre_novo)) {
                 echo json_encode(['sucesso' => false, 'mensagem' => 'Trimestre atual e novo trimestre são obrigatórios.']);
                 return;
@@ -363,7 +376,6 @@ class MatriculaController {
                 return;
             }
             
-            // Executar migração
             $resultado = $this->model->migrarMatriculasParaNovoTrimestre(
                 $trimestre_atual, 
                 $trimestre_novo, 
@@ -381,6 +393,13 @@ class MatriculaController {
 }
 
 // ==================== ROTEAMENTO ====================
+// Garantir que o PDO está definido
+if (!isset($pdo) || !$pdo) {
+    http_response_code(500);
+    echo json_encode(['sucesso' => false, 'mensagem' => 'Conexão com banco de dados não estabelecida.']);
+    exit;
+}
+
 $acao = $_POST['acao'] ?? $_GET['acao'] ?? null;
 if (!$acao) {
     http_response_code(400);
@@ -411,5 +430,5 @@ switch ($acao) {
     default:
         http_response_code(400);
         echo json_encode(['sucesso' => false, 'mensagem' => 'Ação inválida: ' . htmlspecialchars($acao)]);
+        exit;
 }
-?>

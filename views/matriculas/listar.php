@@ -28,19 +28,19 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
     <!-- Cabeçalho da Página -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" data-aos="fade-down">
         <div>
-            <h1 class="display-5 fw-bold mb-2" style="color: var(--gray-800);">
-                <i class="fas fa-list me-3" style="color: var(--primary-600);"></i>
+            <h1 class="display-5 fw-bold mb-2" style="color: #1f2937;">
+                <i class="fas fa-list me-3" style="color: #4f46e5;"></i>
                 Listar Matrículas
             </h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">
-                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: var(--primary-600);">
+                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: #4f46e5;">
                             <i class="fas fa-home me-1"></i> Dashboard
                         </a>
                     </li>
                     <li class="breadcrumb-item">
-                        <a href="index.php" style="color: var(--primary-600);">
+                        <a href="index.php" style="color: #4f46e5;">
                             <i class="fas fa-user-plus me-1"></i> Matrículas
                         </a>
                     </li>
@@ -70,7 +70,7 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="custom-table mb-0" id="tabelaMatriculas">
+                <table class="custom-table mb-0" id="tabelaMatriculas" width="100%">
                     <thead>
                         <tr>
                             <th style="width: 60px">ID</th>
@@ -86,7 +86,7 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
                     <tbody>
                         <tr>
                             <td colspan="8" class="text-center py-5">
-                                <i class="fas fa-spinner fa-spin fa-2x mb-2 d-block" style="color: var(--primary-400);"></i>
+                                <i class="fas fa-spinner fa-spin fa-2x mb-2 d-block" style="color: #4f46e5;"></i>
                                 <p class="text-muted mb-0">Carregando matrículas...</p>
                             </td>
                         </tr>
@@ -101,7 +101,7 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
 <div class="modal fade" id="modalVisualizar" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" style="background: var(--gradient-primary);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
                 <h5 class="modal-title text-white">
                     <i class="fas fa-info-circle me-2"></i> Detalhes da Matrícula
                 </h5>
@@ -115,7 +115,7 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="background: var(--gray-50);">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i> Fechar
                 </button>
@@ -128,20 +128,20 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
 <div class="modal fade" id="modalExcluir" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, var(--danger) 0%, #b91c1c 100%);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
                 <h5 class="modal-title text-white">
                     <i class="fas fa-exclamation-triangle me-2"></i> Confirmar Exclusão
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-4">
-                <i class="fas fa-trash-alt fa-4x mb-3" style="color: var(--danger);"></i>
+                <i class="fas fa-trash-alt fa-4x mb-3" style="color: #ef4444;"></i>
                 <p class="mb-2 fs-5 fw-semibold">Tem certeza que deseja excluir esta matrícula?</p>
                 <p class="text-danger small mt-2">
                     <i class="fas fa-info-circle me-1"></i> Esta ação não pode ser desfeita.
                 </p>
             </div>
-            <div class="modal-footer justify-content-center" style="background: var(--gray-50);">
+            <div class="modal-footer justify-content-center">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i> Cancelar
                 </button>
@@ -154,37 +154,91 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
 </div>
 
 <!-- Container para Toasts -->
-<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+<div id="toastContainer" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
 
 <style>
-/* Estilos específicos para a página de listar matrículas */
-.breadcrumb-item + .breadcrumb-item::before {
-    content: "›";
-    color: var(--gray-500);
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
 }
-
-/* Badge de status */
+.spinner-custom {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #fff;
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 .badge-status-ativo {
-    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
-    padding: 0.35rem 0.85rem;
+    padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 600;
     display: inline-block;
 }
-
 .badge-status-inativo {
-    background: linear-gradient(135deg, var(--gray-500) 0%, var(--gray-600) 100%);
+    background: #6b7280;
     color: white;
-    padding: 0.35rem 0.85rem;
+    padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 600;
     display: inline-block;
 }
-
-/* Botões de ação */
+.modern-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+.card-header-modern {
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+.custom-table {
+    width: 100%;
+    margin-bottom: 0;
+}
+.custom-table th {
+    background: #f9fafb;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+.custom-table td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #e5e7eb;
+}
+.btn-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.btn-modern-primary {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: white;
+    border: none;
+}
+.btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
 .btn-action {
     display: inline-flex;
     align-items: center;
@@ -194,130 +248,104 @@ if (empty($congregacao_id) && $perfil !== 'admin') {
     border-radius: 8px;
     transition: all 0.2s ease;
     margin: 0 2px;
+    border: none;
+    cursor: pointer;
 }
-
 .btn-action:hover {
     transform: translateY(-2px);
 }
-
 .btn-view {
-    background: var(--primary-100);
-    color: var(--primary-700);
+    background: #e0e7ff;
+    color: #4f46e5;
 }
-
 .btn-view:hover {
-    background: var(--primary-200);
-    color: var(--primary-800);
+    background: #c7d2fe;
+    color: #4338ca;
 }
-
 .btn-edit {
-    background: var(--accent-100);
-    color: var(--accent-700);
+    background: #fef3c7;
+    color: #d97706;
 }
-
 .btn-edit:hover {
-    background: var(--accent-200);
-    color: var(--accent-800);
+    background: #fde68a;
+    color: #b45309;
 }
-
 .btn-delete {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger);
+    background: #fee2e2;
+    color: #ef4444;
 }
-
 .btn-delete:hover {
-    background: rgba(239, 68, 68, 0.2);
-    color: #b91c1c;
+    background: #fecaca;
+    color: #dc2626;
 }
-
-/* DataTables personalizado */
-.dataTables_wrapper .dataTables_filter input {
-    border-radius: 10px;
-    border: 1.5px solid var(--gray-200);
-    padding: 0.5rem 0.75rem;
-    margin-left: 0.5rem;
-}
-
-.dataTables_wrapper .dataTables_filter input:focus {
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.dataTables_wrapper .dataTables_length select {
-    border-radius: 10px;
-    border: 1.5px solid var(--gray-200);
-    padding: 0.25rem 0.5rem;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background: var(--gradient-primary) !important;
-    border: none !important;
-    color: white !important;
-}
-
-/* Toast personalizado */
-.custom-toast {
-    border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    border: none;
-    min-width: 320px;
-}
-
-.custom-toast.bg-success {
-    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
-}
-
-.custom-toast.bg-danger {
-    background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
-}
-
-/* Detalhes da matrícula */
 .detalhes-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 0;
-    border-bottom: 1px solid var(--gray-200);
+    border-bottom: 1px solid #e5e7eb;
 }
-
 .detalhes-item:last-child {
     border-bottom: none;
 }
-
 .detalhes-label {
     font-weight: 600;
-    color: var(--gray-700);
+    color: #374151;
 }
-
 .detalhes-value {
-    color: var(--gray-800);
+    color: #1f2937;
 }
-
-/* Responsividade */
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+    border: none !important;
+    color: white !important;
+}
 @media (max-width: 768px) {
     .display-5 {
         font-size: 1.5rem;
     }
-    
-    .dataTables_wrapper .dataTables_filter {
-        float: none;
-        text-align: right;
-        margin-bottom: 1rem;
-    }
-    
-    .dataTables_wrapper .dataTables_length {
-        float: none;
-        margin-bottom: 1rem;
-    }
 }
 </style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="//cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 
 <script>
 $(document).ready(function() {
     let tabela = null;
     let matriculaIdParaExcluir = null;
     
-    // Inicializar DataTable
+    function exibirToast(mensagem, tipo = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast align-items-center text-white bg-${tipo} border-0 show`;
+        toastEl.setAttribute('role', 'alert');
+        toastEl.style.minWidth = '300px';
+        toastEl.style.marginBottom = '10px';
+        toastEl.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    ${mensagem}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        container.appendChild(toastEl);
+        setTimeout(() => {
+            toastEl.classList.remove('show');
+            setTimeout(() => toastEl.remove(), 300);
+        }, 4000);
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
     function inicializarDataTable() {
         if ($.fn.DataTable.isDataTable('#tabelaMatriculas')) {
             tabela = $('#tabelaMatriculas').DataTable();
@@ -334,46 +362,45 @@ $(document).ready(function() {
                 data: { acao: 'listarMatriculas' },
                 error: function(xhr) {
                     console.error('Erro AJAX:', xhr.responseText);
-                    exibirMensagem('erro', 'Erro ao carregar matrículas.');
+                    exibirToast('Erro ao carregar matrículas.', 'danger');
                 }
             },
             columns: [
                 { 
                     data: 'id',
                     render: function(data) {
-                        return `<span class="badge-id" style="background: var(--gray-100); padding: 0.25rem 0.5rem; border-radius: 8px; font-family: monospace;">#${data}</span>`;
+                        return `<span style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 8px;">#${data}</span>`;
                     }
                 },
                 { 
                     data: 'aluno',
                     render: function(data) {
-                        return `<i class="fas fa-user-graduate me-2" style="color: var(--primary-500);"></i>${escapeHtml(data)}`;
+                        return `<i class="fas fa-user-graduate me-2" style="color: #4f46e5;"></i>${escapeHtml(data)}`;
                     }
                 },
                 { 
                     data: 'classe',
                     render: function(data) {
-                        return `<i class="fas fa-chalkboard-user me-2" style="color: var(--success);"></i>${escapeHtml(data)}`;
+                        return `<i class="fas fa-chalkboard-user me-2" style="color: #10b981;"></i>${escapeHtml(data)}`;
                     }
                 },
                 { 
                     data: 'congregacao',
                     render: function(data) {
-                        return `<i class="fas fa-church me-2" style="color: var(--primary-500);"></i>${escapeHtml(data)}`;
+                        return `<i class="fas fa-church me-2" style="color: #4f46e5;"></i>${escapeHtml(data)}`;
                     }
                 },
                 { 
                     data: 'trimestre',
                     render: function(data) {
-                        return `<span class="badge-id">${escapeHtml(data)}</span>`;
+                        return `<span style="background: #e0e7ff; padding: 0.25rem 0.5rem; border-radius: 8px;">${escapeHtml(data)}</span>`;
                     }
                 },
                 { 
                     data: 'data_matricula',
                     render: function(data) {
-                        if (!data) return '-';
-                        const date = new Date(data);
-                        return date.toLocaleDateString('pt-BR');
+                        if (!data || data === '0000-00-00') return '-';
+                        return data;
                     }
                 },
                 { 
@@ -396,9 +423,9 @@ $(document).ready(function() {
                                 <button class="btn-action btn-view" onclick="visualizarMatricula(${data.id})" title="Visualizar">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <a href="editar.php?id=${data.id}" class="btn-action btn-edit" title="Editar">
+                                <button class="btn-action btn-edit" onclick="editarMatricula(${data.id})" title="Editar">
                                     <i class="fas fa-edit"></i>
-                                </a>
+                                </button>
                                 <button class="btn-action btn-delete" onclick="confirmarExclusao(${data.id})" title="Excluir">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
@@ -412,52 +439,10 @@ $(document).ready(function() {
             },
             order: [[0, 'desc']],
             pageLength: 10,
-            lengthMenu: [5, 10, 25, 50, 100],
-            responsive: true,
-            drawCallback: function() {
-                $('.dataTables_paginate').addClass('mt-3');
-            }
+            lengthMenu: [5, 10, 25, 50, 100]
         });
     }
     
-    // Função para escapar HTML
-    function escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // Função para exibir mensagem toast
-    function exibirMensagem(tipo, mensagem) {
-        const container = document.getElementById('toastContainer');
-        if (!container) return;
-        
-        const bg = tipo === 'sucesso' ? 'bg-success' : 'bg-danger';
-        const icon = tipo === 'sucesso' ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-exclamation-triangle"></i>';
-        
-        const toast = document.createElement('div');
-        toast.className = `toast custom-toast ${bg} text-white show`;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('aria-live', 'assertive');
-        toast.setAttribute('aria-atomic', 'true');
-        
-        toast.innerHTML = `
-            <div class="toast-body d-flex align-items-center gap-2">
-                <span style="font-size: 1.2rem;">${icon}</span>
-                <span class="flex-grow-1">${mensagem}</span>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>`;
-        
-        container.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
-    }
-    
-    // Função para visualizar matrícula
     window.visualizarMatricula = function(id) {
         $('#detalhesMatricula').html(`
             <div class="text-center py-4">
@@ -472,60 +457,62 @@ $(document).ready(function() {
             data: { acao: 'buscarMatricula', id: id },
             dataType: 'json',
             success: function(res) {
-                if (res.sucesso && res.data) {
-                    const data = res.data;
+                if (res.sucesso && res.dados) {
+                    const data = res.dados;
                     const statusClass = data.status === 'ativo' ? 'badge-status-ativo' : 'badge-status-inativo';
                     const statusIcon = data.status === 'ativo' ? 'fa-check-circle' : 'fa-times-circle';
                     const statusText = data.status === 'ativo' ? 'Ativo' : 'Inativo';
                     
                     $('#detalhesMatricula').html(`
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-hashtag me-2"></i> ID:</span>
+                            <span class="detalhes-label">ID:</span>
                             <span class="detalhes-value">#${data.id}</span>
                         </div>
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-user-graduate me-2"></i> Aluno:</span>
+                            <span class="detalhes-label">Aluno:</span>
                             <span class="detalhes-value">${escapeHtml(data.aluno)}</span>
                         </div>
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-chalkboard-user me-2"></i> Classe:</span>
+                            <span class="detalhes-label">Classe:</span>
                             <span class="detalhes-value">${escapeHtml(data.classe)}</span>
                         </div>
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-church me-2"></i> Congregação:</span>
+                            <span class="detalhes-label">Congregação:</span>
                             <span class="detalhes-value">${escapeHtml(data.congregacao)}</span>
                         </div>
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-chart-line me-2"></i> Trimestre:</span>
+                            <span class="detalhes-label">Trimestre:</span>
                             <span class="detalhes-value">${escapeHtml(data.trimestre)}</span>
                         </div>
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-calendar-alt me-2"></i> Data Matrícula:</span>
-                            <span class="detalhes-value">${data.data_matricula ? new Date(data.data_matricula).toLocaleDateString('pt-BR') : '-'}</span>
+                            <span class="detalhes-label">Data Matrícula:</span>
+                            <span class="detalhes-value">${data.data_matricula && data.data_matricula !== '0000-00-00' ? data.data_matricula : '-'}</span>
                         </div>
                         <div class="detalhes-item">
-                            <span class="detalhes-label"><i class="fas fa-circle me-2"></i> Status:</span>
+                            <span class="detalhes-label">Status:</span>
                             <span class="${statusClass}"><i class="fas ${statusIcon} me-1"></i> ${statusText}</span>
                         </div>
                     `);
                     $('#modalVisualizar').modal('show');
                 } else {
-                    exibirMensagem('erro', res.mensagem || 'Erro ao carregar detalhes');
+                    exibirToast(res.mensagem || 'Erro ao carregar detalhes', 'danger');
                 }
             },
             error: function() {
-                exibirMensagem('erro', 'Erro ao carregar detalhes da matrícula');
+                exibirToast('Erro ao carregar detalhes da matrícula', 'danger');
             }
         });
     };
     
-    // Função para confirmar exclusão
+    window.editarMatricula = function(id) {
+        window.location.href = `index.php?id=${id}`;
+    };
+    
     window.confirmarExclusao = function(id) {
         matriculaIdParaExcluir = id;
         $('#modalExcluir').modal('show');
     };
     
-    // Confirmar exclusão
     $('#btnConfirmarExcluir').on('click', function() {
         if (!matriculaIdParaExcluir) return;
         
@@ -543,26 +530,24 @@ $(document).ready(function() {
                 if (res.sucesso) {
                     $('#modalExcluir').modal('hide');
                     if (tabela) tabela.ajax.reload(null, false);
-                    exibirMensagem('sucesso', res.mensagem || 'Matrícula excluída com sucesso!');
+                    exibirToast(res.mensagem || 'Matrícula excluída com sucesso!', 'success');
                     matriculaIdParaExcluir = null;
                 } else {
-                    exibirMensagem('erro', res.mensagem || 'Erro ao excluir matrícula');
+                    exibirToast(res.mensagem || 'Erro ao excluir matrícula', 'danger');
                 }
             },
             error: function() {
                 btn.prop('disabled', false).html('<i class="fas fa-trash-alt me-1"></i> Sim, Excluir');
-                exibirMensagem('erro', 'Erro ao excluir matrícula');
+                exibirToast('Erro ao excluir matrícula', 'danger');
             }
         });
     });
     
-    // Limpar ao fechar modais
     $('#modalExcluir').on('hidden.bs.modal', function() {
         matriculaIdParaExcluir = null;
         $('#btnConfirmarExcluir').prop('disabled', false).html('<i class="fas fa-trash-alt me-1"></i> Sim, Excluir');
     });
     
-    // Inicializar
     inicializarDataTable();
 });
 </script>

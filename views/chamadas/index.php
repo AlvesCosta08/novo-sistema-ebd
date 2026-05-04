@@ -10,6 +10,17 @@ require_once '../../auth/valida_sessao.php';
 // Configurar título da página
 $pageTitle = 'Registrar Chamada';
 
+// Função para obter URL base (consistente com editar.php)
+function getBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+    
+    // CORREÇÃO: O script está em /sistemas/escola/views/chamada/
+    // Precisamos voltar 3 níveis para chegar na raiz do sistema
+    $basePath = str_replace('/views/chamada', '', $scriptDir);
+    return $protocol . '://' . $host . $basePath;
+}
 // Incluir header (já contém navbar e todos os CSS/JS)
 require_once '../../includes/header.php';
 
@@ -35,6 +46,7 @@ function getTrimestreAtual() {
 
 $anoAtual = date('Y');
 $trimestreAtual = getTrimestreAtual();
+$baseUrl = getBaseUrl();
 ?>
 
 <!-- Conteúdo principal -->
@@ -49,7 +61,7 @@ $trimestreAtual = getTrimestreAtual();
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">
-                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: var(--primary-600);">
+                        <a href="<?= $baseUrl ?>/views/dashboard.php" style="color: var(--primary-600);">
                             <i class="fas fa-home me-1"></i> Dashboard
                         </a>
                     </li>
@@ -337,6 +349,29 @@ $trimestreAtual = getTrimestreAtual();
     padding: 16px 20px;
 }
 
+.fab-mobile {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+    z-index: 1000;
+}
+
+.fab-mobile:hover {
+    transform: scale(1.05);
+}
+
 @media (max-width: 768px) {
     .container-fluid {
         padding: 0 16px !important;
@@ -358,77 +393,17 @@ $trimestreAtual = getTrimestreAtual();
 </style>
 
 <script>
-// Inicializa AOS animations
-AOS.init({
-    duration: 600,
-    once: true,
-    offset: 50
-});
-
-// Variáveis globais
+// CORREÇÃO: Usar caminho absoluto a partir da raiz do site
+const API_URL = '../../controllers/chamada.php';
 const USUARIO_PERFIL = '<?= $perfil ?>';
 const USUARIO_CONGR_ID = <?= json_encode($congregacao_id) ?>;
 const USUARIO_ID = <?= (int)$usuario_id ?>;
-const BASE_URL = '../../controllers/chamada.php';
 const ANO_ATUAL = <?= $anoAtual ?>;
 const TRIMESTRE_ATUAL = <?= $trimestreAtual ?>;
 
-// Função para obter trimestre formatado
-function getTrimestreFormatado() {
-    const ano = document.getElementById('anoSelect')?.value || ANO_ATUAL;
-    const trimestre = document.getElementById('trimestreSelect')?.value || TRIMESTRE_ATUAL;
-    return `${ano}-T${trimestre}`;
-}
-
-// Atualiza display do trimestre
-document.addEventListener('DOMContentLoaded', function() {
-    const anoSelect = document.getElementById('anoSelect');
-    const trimestreSelect = document.getElementById('trimestreSelect');
-    const trimestreDisplay = document.getElementById('trimestreFormatadoDisplay');
-    
-    if (anoSelect && trimestreSelect && trimestreDisplay) {
-        const updateTrimestreDisplay = () => {
-            trimestreDisplay.textContent = getTrimestreFormatado();
-        };
-        anoSelect.addEventListener('change', updateTrimestreDisplay);
-        trimestreSelect.addEventListener('change', updateTrimestreDisplay);
-    }
-    
-    // Show FAB only on mobile when totais container is visible
-    const observer = new MutationObserver(function() {
-        const totaisContainer = document.getElementById('containerTotais');
-        const fab = document.getElementById('fabSalvar');
-        if (totaisContainer && fab) {
-            const isVisible = !totaisContainer.classList.contains('d-none');
-            fab.style.display = isVisible ? 'flex' : 'none';
-        }
-    });
-    
-    const totaisContainer = document.getElementById('containerTotais');
-    if (totaisContainer) {
-        observer.observe(totaisContainer, { 
-            attributes: true, 
-            attributeFilter: ['class'] 
-        });
-    }
-    
-    // FAB click event
-    const fabSalvar = document.getElementById('fabSalvar');
-    if (fabSalvar) {
-        fabSalvar.addEventListener('click', function() {
-            const btnSalvar = document.getElementById('btnSalvarChamada');
-            if (btnSalvar) {
-                btnSalvar.click();
-                fabSalvar.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    fabSalvar.style.transform = 'scale(1)';
-                }, 200);
-            }
-        });
-    }
-});
+console.log('API_URL:', API_URL);
 </script>
-
+<!-- Carregar o JavaScript externo -->
 <script src="js/chamada.js"></script>
 
 <?php

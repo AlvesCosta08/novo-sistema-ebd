@@ -15,13 +15,20 @@ $scriptAtual = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
 <nav class="navbar navbar-expand-lg fixed-top navbar-primary">
     <div class="container-fluid">
         <!-- Brand -->
+       <!-- Brand -->
         <a class="navbar-brand d-flex align-items-center gap-2" href="<?= BASE_URL ?>/views/dashboard.php">
-            <div class="bg-white bg-opacity-25 rounded-circle p-2" style="width: 40px; height: 40px;">
-                <i class="fas fa-church fa-lg text-white"></i>
+            <!-- Container do Logo/Círculo -->
+            <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center overflow-hidden" 
+                 style="width: 40px; height: 40px; flex-shrink: 0;">
+               <!-- Imagem da Bíblia: Usando BASE_URL para caminho correto da imagem -->
+               <img src="<?= BASE_URL ?>/assets/images/biblia.png" 
+                    alt="Logo EBD System" 
+                    class="img-fluid" 
+                    style="width: 100%; height: 100%; object-fit: cover;">
             </div>
-            <div>
-                <span class="fw-bold fs-5">EBD System</span>
-                <small class="d-block text-white-50" style="font-size: 10px;">Escola Bíblica Dominical</small>
+            <div class="d-none d-sm-block">
+                <span class="fw-bold fs-5 text-white">EBD System</span>
+                <small class="d-block text-white-50" style="font-size: 10px; line-height: 1;">Escola Bíblica Dominical</small>
             </div>
         </a>
 

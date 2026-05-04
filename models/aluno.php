@@ -1,4 +1,5 @@
-<?php require_once '../config/conexao.php';
+<?php
+require_once '../config/conexao.php';
 
 class Aluno {
     private $db;
@@ -13,12 +14,14 @@ class Aluno {
                 SELECT a.id, a.nome, a.data_nascimento, a.telefone, c.nome AS classe 
                 FROM alunos a 
                 JOIN classes c ON a.classe_id = c.id 
+                WHERE a.status = 'ativo'
                 ORDER BY a.nome ASC
             ");
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            return ["status" => "error", "message" => "Erro ao listar alunos: " . $e->getMessage()];
+            error_log("Erro ao listar alunos: " . $e->getMessage());
+            return [];
         }
     }
 
@@ -47,91 +50,127 @@ class Aluno {
                 ];
             }
         } catch (PDOException $e) {
+            error_log("Erro ao buscar aluno: " . $e->getMessage());
             return [
                 "status" => "error",
-                "message" => "Erro ao buscar aluno: " . $e->getMessage()
+                "message" => "Erro ao buscar aluno"
             ];
         }
     }
 
     public function salvar($dados) {
         try {
-            $nome = trim(htmlspecialchars($dados['nome'], ENT_QUOTES, 'UTF-8'));
-            $data_nascimento = $dados['data_nascimento'];
-            $telefone = trim(htmlspecialchars($dados['telefone'], ENT_QUOTES, 'UTF-8'));
-            $classe_id = filter_var($dados['classe_id'], FILTER_VALIDATE_INT);
-    
-            if (!$nome || !$data_nascimento || !$telefone || !$classe_id) {
-                return ["status" => "error", "message" => "Dados inválidos"];
+            // Validar se classe existe
+            $stmt = $this->db->prepare("SELECT id FROM classes WHERE id = :classe_id");
+            $stmt->execute([':classe_id' => $dados['classe_id']]);
+            if (!$stmt->fetch()) {
+                return ["status" => "error", "message" => "Classe não encontrada"];
             }
-    
-            // Debug: Verificar se os dados estão corretos
-            error_log("Salvando aluno: " . json_encode($dados));
-    
-            // Usar INSERT INTO sem afetar registros existentes
+            
+            // Verificar se já existe aluno com mesmo nome e telefone (opcional)
             $stmt = $this->db->prepare("
-                INSERT INTO alunos (nome, data_nascimento, telefone, classe_id) 
-                VALUES (:nome, :data_nascimento, :telefone, :classe_id)
+                SELECT id FROM alunos 
+                WHERE nome = :nome AND telefone = :telefone AND status = 'ativo'
             ");
             $stmt->execute([
-                ':nome' => $nome,
-                ':data_nascimento' => $data_nascimento,
-                ':telefone' => $telefone,
-                ':classe_id' => $classe_id
+                ':nome' => $dados['nome'],
+                ':telefone' => $dados['telefone']
+            ]);
+            
+            if ($stmt->fetch()) {
+                return ["status" => "error", "message" => "Aluno já cadastrado com este nome e telefone"];
+            }
+            
+            // Inserir novo aluno
+            $stmt = $this->db->prepare("
+                INSERT INTO alunos (nome, data_nascimento, telefone, classe_id, status, created_at) 
+                VALUES (:nome, :data_nascimento, :telefone, :classe_id, 'ativo', NOW())
+            ");
+            $stmt->execute([
+                ':nome' => $dados['nome'],
+                ':data_nascimento' => $dados['data_nascimento'],
+                ':telefone' => $dados['telefone'],
+                ':classe_id' => $dados['classe_id']
             ]);
     
             return ["status" => "success", "message" => "Aluno cadastrado com sucesso"];
+            
         } catch (PDOException $e) {
+            error_log("Erro ao salvar aluno: " . $e->getMessage());
             return ["status" => "error", "message" => "Erro ao salvar aluno: " . $e->getMessage()];
         }
     }
-    
-
 
     public function editar($id, $dados) {
         try {
-            $id = filter_var($id, FILTER_VALIDATE_INT);
-            $nome = trim(htmlspecialchars($dados['nome'], ENT_QUOTES, 'UTF-8'));
-            $data_nascimento = $dados['data_nascimento'];
-            $telefone = trim(htmlspecialchars($dados['telefone'], ENT_QUOTES, 'UTF-8'));
-            $classe_id = filter_var($dados['classe_id'], FILTER_VALIDATE_INT);
-    
-            // Verifica se os dados são válidos
-            if (!$id || !$nome || !$data_nascimento || !$telefone || !$classe_id) {
-                return ["status" => "error", "message" => "Dados inválidos"];
+            // Verificar se aluno existe
+            $stmt = $this->db->prepare("SELECT id FROM alunos WHERE id = :id");
+            $stmt->execute([':id' => $id]);
+            if (!$stmt->fetch()) {
+                return ["status" => "error", "message" => "Aluno não encontrado"];
             }
-    
-            // Debug: Verificar os dados antes de atualizar
-            error_log("Editando aluno ID: $id - Dados: " . json_encode($dados));
-    
-            // Atualiza os dados do aluno
+            
+            // Validar se classe existe
+            $stmt = $this->db->prepare("SELECT id FROM classes WHERE id = :classe_id");
+            $stmt->execute([':classe_id' => $dados['classe_id']]);
+            if (!$stmt->fetch()) {
+                return ["status" => "error", "message" => "Classe não encontrada"];
+            }
+            
+            // Atualizar dados
             $stmt = $this->db->prepare("
                 UPDATE alunos 
-                SET nome = :nome, data_nascimento = :data_nascimento, telefone = :telefone, classe_id = :classe_id
+                SET nome = :nome, 
+                    data_nascimento = :data_nascimento, 
+                    telefone = :telefone, 
+                    classe_id = :classe_id
                 WHERE id = :id
             ");
             $stmt->execute([
                 ':id' => $id,
-                ':nome' => $nome,
-                ':data_nascimento' => $data_nascimento,
-                ':telefone' => $telefone,
-                ':classe_id' => $classe_id
+                ':nome' => $dados['nome'],
+                ':data_nascimento' => $dados['data_nascimento'],
+                ':telefone' => $dados['telefone'],
+                ':classe_id' => $dados['classe_id']
             ]);
     
             return ["status" => "success", "message" => "Aluno atualizado com sucesso"];
+            
         } catch (PDOException $e) {
-            return ["status" => "error", "message" => "Erro ao editar aluno: " . $e->getMessage()];
+            error_log("Erro ao editar aluno: " . $e->getMessage());
+            return ["status" => "error", "message" => "Erro ao editar aluno"];
         }
     }
     
-
     public function excluir($id) {
         try {
-            $stmt = $this->db->prepare("DELETE FROM alunos WHERE id = :id");
+            // Verificar se aluno existe
+            $stmt = $this->db->prepare("SELECT id FROM alunos WHERE id = :id");
             $stmt->execute([':id' => $id]);
-            return ["status" => "success", "message" => "Aluno excluído com sucesso"];
+            if (!$stmt->fetch()) {
+                return ["status" => "error", "message" => "Aluno não encontrado"];
+            }
+            
+            // Verificar se há presenças vinculadas (soft delete é mais seguro)
+            $stmt = $this->db->prepare("SELECT COUNT(*) FROM presencas WHERE aluno_id = :id");
+            $stmt->execute([':id' => $id]);
+            $count = $stmt->fetchColumn();
+            
+            if ($count > 0) {
+                // Se houver presenças, apenas marcar como inativo
+                $stmt = $this->db->prepare("UPDATE alunos SET status = 'inativo' WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                return ["status" => "success", "message" => "Aluno marcado como inativo (possui registros de presença)"];
+            } else {
+                // Se não houver presenças, pode excluir
+                $stmt = $this->db->prepare("DELETE FROM alunos WHERE id = :id");
+                $stmt->execute([':id' => $id]);
+                return ["status" => "success", "message" => "Aluno excluído com sucesso"];
+            }
+            
         } catch (PDOException $e) {
-            return ["status" => "error", "message" => "Erro ao excluir aluno: " . $e->getMessage()];
+            error_log("Erro ao excluir aluno: " . $e->getMessage());
+            return ["status" => "error", "message" => "Erro ao excluir aluno"];
         }
     }
 }

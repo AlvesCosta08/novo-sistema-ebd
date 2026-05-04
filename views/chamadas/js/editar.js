@@ -1,4 +1,6 @@
 // editar.js - Versão final corrigida
+// Depende das variáveis globais definidas no editar.php:
+// CHAMADA_ID, API_URL, USUARIO_ID, USUARIO_PERFIL, USUARIO_CONGR_ID, ANO_ATUAL, TRIMESTRE_ATUAL
 
 document.addEventListener('DOMContentLoaded', async function() {
     const formContainer = document.getElementById('formContainer');
@@ -6,15 +8,28 @@ document.addEventListener('DOMContentLoaded', async function() {
     let confirmacaoModal = null;
     let sucessoModal = null;
 
+    console.log('=== editar.js iniciado ===');
+    console.log('CHAMADA_ID:', typeof CHAMADA_ID !== 'undefined' ? CHAMADA_ID : 'NÃO DEFINIDO');
+    console.log('API_URL:', typeof API_URL !== 'undefined' ? API_URL : 'NÃO DEFINIDO');
+    console.log('USUARIO_ID:', typeof USUARIO_ID !== 'undefined' ? USUARIO_ID : 'NÃO DEFINIDO');
+    console.log('USUARIO_PERFIL:', typeof USUARIO_PERFIL !== 'undefined' ? USUARIO_PERFIL : 'NÃO DEFINIDO');
+
     // Verificar se CHAMADA_ID está definido
     if (typeof CHAMADA_ID === 'undefined' || !CHAMADA_ID) {
         formContainer.innerHTML = `<div class="alert alert-danger m-4"><i class="fas fa-exclamation-triangle me-2"></i>ID da chamada não informado. <a href="listar.php">Voltar para lista</a></div>`;
         return;
     }
 
+    // Verificar se API_URL está definido
+    if (typeof API_URL === 'undefined' || !API_URL) {
+        formContainer.innerHTML = `<div class="alert alert-danger m-4"><i class="fas fa-exclamation-triangle me-2"></i>URL da API não configurada. <a href="listar.php">Voltar para lista</a></div>`;
+        return;
+    }
+
     // Inicializar modais com segurança
     const modalConfirmacaoEl = document.getElementById('modalConfirmacao');
     const modalSucessoEl = document.getElementById('modalSucesso');
+    const modalErroEl = document.getElementById('modalErro');
     
     if (modalConfirmacaoEl) {
         confirmacaoModal = new bootstrap.Modal(modalConfirmacaoEl);
@@ -26,9 +41,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     try {
         console.log('Carregando chamada ID:', CHAMADA_ID);
-        console.log('BASE_URL:', BASE_URL);
+        console.log('API_URL:', API_URL);
         
-        const res = await fetch(BASE_URL, {
+        const res = await fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ acao: 'getChamada', chamada_id: CHAMADA_ID })
@@ -69,6 +84,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         btnConfirmar.parentNode.replaceChild(newBtn, btnConfirmar);
                         newBtn.addEventListener('click', () => {
                             salvarEdicao();
+                            if (confirmacaoModal) confirmacaoModal.hide();
                         });
                     }
                     confirmacaoModal.show();
@@ -95,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         const classeSelect = document.getElementById('classeSelect');
-        if (classeSelect && USUARIO_PERFIL === 'admin') {
+        if (classeSelect && typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL === 'admin') {
             classeSelect.addEventListener('change', async function() {
                 if (confirm('Alterar a classe recarregará a lista de alunos. Deseja continuar?')) {
                     const trimestre = document.getElementById('trimestre').value;
@@ -136,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     async function carregarClassesDisponiveis(congregacaoId) {
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ acao: 'getClassesByCongregacao', congregacao_id: congregacaoId })
@@ -156,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         showLoading();
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -188,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!tbody) return;
         
         if (!alunos || alunos.length === 0) {
-            tbody.innerHTML = `<td><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno matriculado nesta classe.</td></tr>`;
+            tbody.innerHTML = `<td><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno matriculado nesta classe. </td></tr>`;
             return;
         }
         
@@ -196,8 +212,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         alunos.forEach((aluno, index) => {
             html += `
                 <tr>
-                    <td class="text-center"><span class="badge bg-secondary rounded-pill">${index + 1}</span></td>
-                    <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${aluno.id}"></td>
+                    <td class="text-center"><span class="badge bg-secondary rounded-pill">${index + 1}</span> </td>
+                    <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${aluno.id}"> </td>
                     <td>
                         <div class="d-flex gap-2 flex-wrap">
                             <label class="radio-option d-inline-flex align-items-center gap-1">
@@ -213,8 +229,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 <span class="badge bg-warning text-dark">Justificado</span>
                             </label>
                         </div>
-                    </td>
-                </tr>
+                     </td>
+                 </tr>
             `;
         });
         tbody.innerHTML = html;
@@ -224,7 +240,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         let dataFormatada = chamada.data || '';
         
         let classeHtml = '';
-        if (USUARIO_PERFIL === 'admin' && classesDisponiveis.length > 0) {
+        if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL === 'admin' && classesDisponiveis.length > 0) {
             classeHtml = `
                 <label class="form-label fw-semibold"><i class="fas fa-users text-primary me-1"></i> Classe</label>
                 <select id="classeSelect" class="form-select">
@@ -251,8 +267,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 alunosHtml += `
                     <tr>
-                        <td class="text-center"><span class="badge bg-secondary rounded-pill">${index + 1}</span></td>
-                        <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${alunoId}"></td>
+                        <td class="text-center"><span class="badge bg-secondary rounded-pill">${index + 1}</span> </td>
+                        <td><i class="fas fa-user-graduate text-primary me-2"></i>${escapeHtml(aluno.nome)}<input type="hidden" name="aluno_id" value="${alunoId}"> </td>
                         <td>
                             <div class="d-flex gap-2 flex-wrap">
                                 <label class="radio-option d-inline-flex align-items-center gap-1">
@@ -268,15 +284,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     <span class="badge bg-warning text-dark">Justificado</span>
                                 </label>
                             </div>
-                        </td>
-                    </tr>
+                         </td>
+                     </tr>
                 `;
             });
         } else {
-            alunosHtml = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno registrado nesta chamada.</td></tr>`;
+            alunosHtml = `<tr><td colspan="3" class="text-center text-muted py-4"><i class="fas fa-users-slash fa-2x mb-2 d-block"></i>Nenhum aluno registrado nesta chamada. </td></tr>`;
         }
         
-        const podeEditarTrimestre = USUARIO_PERFIL === 'admin' ? '' : 'readonly disabled';
+        const podeEditarTrimestre = (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL === 'admin') ? '' : 'readonly disabled';
         
         return `
             <input type="hidden" id="chamadaId" value="${chamada.id}">
@@ -330,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             <div class="table-wrapper border rounded">
                 <table class="custom-table mb-0">
-                    <thead><tr><th style="width: 60px">#</th><th>Aluno</th><th style="min-width: 250px">Status</th></tr></thead>
+                    <thead><tr><th style="width: 60px">#</th><th>Aluno</th><th style="min-width: 250px">Status</th> </tr></thead>
                     <tbody id="tabelaAlunos">${alunosHtml}</tbody>
                 </table>
             </div>
@@ -376,7 +392,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             showToast('A data da chamada é obrigatória.', 'danger');
             if (btnSalvar) btnSalvar.disabled = false;
             if (spinner) spinner.classList.add('d-none');
-            if (confirmacaoModal) confirmacaoModal.hide();
             return;
         }
         
@@ -388,7 +403,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             showToast('Selecione uma classe válida.', 'danger');
             if (btnSalvar) btnSalvar.disabled = false;
             if (spinner) spinner.classList.add('d-none');
-            if (confirmacaoModal) confirmacaoModal.hide();
             return;
         }
         
@@ -399,7 +413,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 showToast('Formato de trimestre inválido. Use ANO-TRIMESTRE (ex: 2026-T2)', 'warning');
                 if (btnSalvar) btnSalvar.disabled = false;
                 if (spinner) spinner.classList.add('d-none');
-                if (confirmacaoModal) confirmacaoModal.hide();
                 return;
             }
         }
@@ -409,7 +422,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             showToast('Nenhum aluno foi encontrado para salvar.', 'warning');
             if (btnSalvar) btnSalvar.disabled = false;
             if (spinner) spinner.classList.add('d-none');
-            if (confirmacaoModal) confirmacaoModal.hide();
             return;
         }
         
@@ -419,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             data: dataChamada,
             trimestre: trimestre,
             classe: classeId,
-            professor: USUARIO_ID,
+            professor: typeof USUARIO_ID !== 'undefined' ? USUARIO_ID : 0,
             alunos: alunos,
             oferta_classe: parseFloat(document.getElementById('ofertaClasse')?.value) || 0,
             total_visitantes: parseInt(document.getElementById('totalVisitantes')?.value) || 0,
@@ -430,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         console.log('Enviando payload:', payload);
         
         try {
-            const res = await fetch(BASE_URL, {
+            const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -439,12 +451,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             console.log('Resposta do servidor:', result);
             
-            if (confirmacaoModal) confirmacaoModal.hide();
-            
             if (result.status === 'success') {
-                const sucessoMensagem = document.getElementById('sucessoMensagem');
-                if (sucessoMensagem) sucessoMensagem.textContent = result.message || 'Chamada atualizada com sucesso!';
-                if (sucessoModal) sucessoModal.show();
+                showToast(result.message || 'Chamada atualizada com sucesso!', 'success');
                 
                 setTimeout(() => {
                     window.location.href = 'listar.php';
@@ -462,6 +470,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function showToast(message, type = 'success') {
+        // Tentar usar a função global do toast do Bootstrap
         let toastContainer = document.getElementById('toastContainer');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
@@ -479,9 +488,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         toastEl.style.minWidth = '250px';
         toastEl.style.marginBottom = '10px';
         
+        const icon = type === 'success' ? 'check-circle' : (type === 'danger' ? 'exclamation-circle' : 'info-circle');
+        
         toastEl.innerHTML = `
             <div class="d-flex">
-                <div class="toast-body"><i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i> ${message}</div>
+                <div class="toast-body"><i class="fas fa-${icon} me-2"></i> ${message}</div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         `;

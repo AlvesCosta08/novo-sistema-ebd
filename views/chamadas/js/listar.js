@@ -1,6 +1,30 @@
 // listar.js - Listagem e gerenciamento de chamadas (versão corrigida)
+// Depende das variáveis globais definidas no listar.php:
+// API_URL, USUARIO_PERFIL, USUARIO_CONGR_ID, ANO_ATUAL
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== listar.js iniciado ===');
+    console.log('API_URL:', typeof API_URL !== 'undefined' ? API_URL : 'NÃO DEFINIDO');
+    console.log('USUARIO_PERFIL:', typeof USUARIO_PERFIL !== 'undefined' ? USUARIO_PERFIL : 'NÃO DEFINIDO');
+    console.log('USUARIO_CONGR_ID:', typeof USUARIO_CONGR_ID !== 'undefined' ? USUARIO_CONGR_ID : 'NÃO DEFINIDO');
+
+    // Verificar se API_URL está definido
+    if (typeof API_URL === 'undefined' || !API_URL) {
+        console.error('API_URL não definida!');
+        const tabelaResultados = document.getElementById('tabelaResultados');
+        if (tabelaResultados) {
+            tabelaResultados.innerHTML = `
+                <tr>
+                    <td colspan="10" class="text-center text-danger py-5">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2 d-block"></i>
+                        Erro de configuração: URL da API não definida.
+                    </td>
+                </tr>
+            `;
+        }
+        return;
+    }
+
     // Elementos da interface
     const filtroCongregacao = document.getElementById('filtroCongregacao');
     const filtroClasse = document.getElementById('filtroClasse');
@@ -27,7 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicialização
     carregarCongregacoes();
     
-    if (USUARIO_PERFIL !== 'admin' && USUARIO_CONGR_ID && filtroCongregacao) {
+    if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && 
+        typeof USUARIO_CONGR_ID !== 'undefined' && USUARIO_CONGR_ID && filtroCongregacao) {
         filtroCongregacao.value = USUARIO_CONGR_ID;
         carregarClasses(USUARIO_CONGR_ID);
     }
@@ -107,10 +132,12 @@ document.addEventListener('DOMContentLoaded', function() {
         toastEl.style.minWidth = '250px';
         toastEl.style.marginBottom = '10px';
         
+        const icon = tipo === 'success' ? 'check-circle' : (tipo === 'danger' ? 'exclamation-circle' : 'info-circle');
+        
         toastEl.innerHTML = `
             <div class="d-flex">
                 <div class="toast-body">
-                    <i class="fas fa-${tipo === 'success' ? 'check-circle' : tipo === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                    <i class="fas fa-${icon} me-2"></i>
                     ${mensagem}
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
@@ -127,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function carregarCongregacoes() {
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ acao: 'getCongregacoes' })
@@ -141,14 +168,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         const opt = document.createElement('option');
                         opt.value = item.id;
                         opt.textContent = item.nome;
-                        if (USUARIO_PERFIL !== 'admin' && item.id == USUARIO_CONGR_ID) {
+                        if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && 
+                            typeof USUARIO_CONGR_ID !== 'undefined' && item.id == USUARIO_CONGR_ID) {
                             opt.selected = true;
                         }
                         filtroCongregacao.appendChild(opt);
                     });
                 }
                 
-                if (USUARIO_PERFIL !== 'admin' && USUARIO_CONGR_ID) {
+                if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && 
+                    typeof USUARIO_CONGR_ID !== 'undefined' && USUARIO_CONGR_ID) {
                     carregarClasses(USUARIO_CONGR_ID);
                 }
             }
@@ -165,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
         filtroClasse.innerHTML = '<option value="">Carregando...</option>';
         
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -203,7 +232,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function limparFiltros() {
-        if (filtroCongregacao && USUARIO_PERFIL === 'admin') filtroCongregacao.value = '';
+        if (filtroCongregacao && typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL === 'admin') {
+            filtroCongregacao.value = '';
+        }
         if (filtroClasse) limparClasses();
         
         const filtroAno = document.getElementById('filtroAno');
@@ -211,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const filtroDataInicio = document.getElementById('filtroDataInicio');
         const filtroDataFim = document.getElementById('filtroDataFim');
         
-        if (filtroAno) filtroAno.value = ANO_ATUAL;
+        if (filtroAno && typeof ANO_ATUAL !== 'undefined') filtroAno.value = ANO_ATUAL;
         if (filtroTrimestre) filtroTrimestre.value = '';
         if (filtroDataInicio) filtroDataInicio.value = '';
         if (filtroDataFim) filtroDataFim.value = '';
@@ -226,7 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (filtroCongregacao && filtroCongregacao.value) {
             payload.congregacao_id = parseInt(filtroCongregacao.value);
-        } else if (USUARIO_PERFIL !== 'admin' && USUARIO_CONGR_ID) {
+        } else if (typeof USUARIO_PERFIL !== 'undefined' && USUARIO_PERFIL !== 'admin' && 
+                   typeof USUARIO_CONGR_ID !== 'undefined' && USUARIO_CONGR_ID) {
             payload.congregacao_id = parseInt(USUARIO_CONGR_ID);
         }
         
@@ -251,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -428,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ acao: 'getChamada', chamada_id: parseInt(id) })
@@ -529,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function excluirChamada(id) {
         try {
-            const response = await fetch(BASE_URL, {
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ acao: 'excluirChamada', chamada_id: parseInt(id) })

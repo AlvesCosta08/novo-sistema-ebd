@@ -13,26 +13,36 @@ function logMessage($message) {
     global $logFile;
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] $message" . PHP_EOL;
-    error_log($logEntry, 3, $logFile); // Escreve no arquivo personalizado
-    error_log($message); // Também envia para o log padrão do servidor
+    error_log($logEntry, 3, $logFile);
+    error_log($message);
 }
 
 logMessage("=== INÍCIO editar.php ===");
 logMessage("GET: " . json_encode($_GET));
 logMessage("POST: " . json_encode($_POST));
-logMessage("SESSION antes do start: " . json_encode($_SESSION ?? []));
 
 // Garantir que a sessão está ativa
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
     logMessage("Sessão iniciada. Session ID: " . session_id());
 }
-logMessage("SESSION depois do start: " . json_encode($_SESSION));
+logMessage("SESSION: " . json_encode($_SESSION));
 
 // Verificar se usuário está logado
-logMessage("Incluindo valida_sessao.php");
 require_once '../../auth/valida_sessao.php';
-logMessage("Validação de sessão concluída. Usuário ID na sessão: " . ($_SESSION['usuario_id'] ?? 'NULO'));
+logMessage("Validação de sessão concluída. Usuário ID: " . ($_SESSION['usuario_id'] ?? 'NULO'));
+
+// Função para obter URL base
+function getBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+    
+    // CORREÇÃO: O script está em /sistemas/escola/views/chamada/
+    // Precisamos voltar 3 níveis para chegar na raiz do sistema
+    $basePath = str_replace('/views/chamada', '', $scriptDir);
+    return $protocol . '://' . $host . $basePath;
+}
 
 // Configurar título da página
 $pageTitle = 'Editar Chamada';
@@ -74,7 +84,7 @@ if (!$chamadaId) {
     exit;
 }
 
-// Função para obter o trimestre atual (usada apenas para fallback)
+// Função para obter o trimestre atual
 function getTrimestreAtual() {
     $mes = date('n');
     if ($mes >= 1 && $mes <= 3) return 1;
@@ -85,6 +95,7 @@ function getTrimestreAtual() {
 
 $anoAtual = date('Y');
 $trimestreAtual = getTrimestreAtual();
+$baseUrl = getBaseUrl();
 ?>
 
 <!-- Conteúdo principal -->
@@ -249,13 +260,12 @@ $trimestreAtual = getTrimestreAtual();
     padding: 0.75rem;
 }
 
-/* Formulário de presenças */
-.presenca-item {
+.formulario-edicao .aluno-row {
     transition: all 0.2s ease;
     border-radius: 12px;
 }
 
-.presenca-item:hover {
+.formulario-edicao .aluno-row:hover {
     background: var(--gray-50);
 }
 
@@ -284,7 +294,6 @@ $trimestreAtual = getTrimestreAtual();
     color: white;
 }
 
-/* Botões de seleção rápida */
 .btn-quick-select {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
@@ -296,7 +305,6 @@ $trimestreAtual = getTrimestreAtual();
     transform: translateY(-1px);
 }
 
-/* Responsividade */
 @media (max-width: 768px) {
     .display-5 {
         font-size: 1.5rem;
@@ -310,30 +318,26 @@ $trimestreAtual = getTrimestreAtual();
         width: 100%;
         margin: 0.25rem 0;
     }
-    
-    .presenca-item .col-12 {
-        margin-bottom: 1rem;
-    }
 }
 </style>
 
 <script>
+    // Variáveis globais para o editar.js
     const CHAMADA_ID = <?= $chamadaId ?>;
-    // CORREÇÃO: usar operador coalescência nula para garantir número
+    const API_URL = '/sistemas/escola/controllers/chamada.php';
     const USUARIO_ID = <?= $usuario_id ?? 0 ?>;
     const USUARIO_PERFIL = '<?= $perfil ?>';
     const USUARIO_CONGR_ID = <?= json_encode($congregacao_id) ?>;
-    const BASE_URL = '../../controllers/chamada.php';
     const ANO_ATUAL = <?= $anoAtual ?>;
     const TRIMESTRE_ATUAL = <?= $trimestreAtual ?>;
     
-    // Função para exibir mensagem toast
+    // Função para exibir mensagem toast (fallback caso não exista no editar.js)
     function exibirMensagem(tipo, mensagem) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
         
         const bg = tipo === 'sucesso' ? 'bg-success' : 'bg-danger';
-        const icon = tipo === 'sucesso' ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-exclamation-triangle"></i>';
+        const icon = tipo === 'sucesso' ? 'check-circle' : 'exclamation-triangle';
         
         const toast = document.createElement('div');
         toast.className = `toast custom-toast ${bg} text-white show`;
@@ -343,7 +347,7 @@ $trimestreAtual = getTrimestreAtual();
         
         toast.innerHTML = `
             <div class="toast-body d-flex align-items-center gap-2">
-                <span style="font-size: 1.2rem;">${icon}</span>
+                <i class="fas fa-${icon}"></i>
                 <span class="flex-grow-1">${mensagem}</span>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
             </div>`;
@@ -363,9 +367,8 @@ $trimestreAtual = getTrimestreAtual();
         offset: 50
     });
 
-    // Log para depuração (pode ser removido em produção)
     console.log('Editar chamada - ID:', CHAMADA_ID);
-    console.log('BASE_URL:', BASE_URL);
+    console.log('API_URL:', API_URL);
 </script>
 
 <script src="js/editar.js"></script>

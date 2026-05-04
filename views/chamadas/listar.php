@@ -7,6 +7,16 @@ if (session_status() === PHP_SESSION_NONE) {
 // Verificar se usuário está logado
 require_once __DIR__ . '/../../auth/valida_sessao.php';
 
+// Função para obter URL base (consistente com index.php e editar.php)
+function getBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
+    // Remove /views/chamada do caminho para voltar à raiz
+    $basePath = str_replace('/views/chamada', '', $scriptDir);
+    return $protocol . '://' . $host . $basePath;
+}
+
 // Configurar título da página
 $pageTitle = 'Histórico de Chamadas';
 
@@ -19,6 +29,7 @@ $perfil          = $_SESSION['perfil'] ?? $_SESSION['usuario_perfil'] ?? 'profes
 $congregacao_id  = $_SESSION['congregacao_id'] ?? null;
 
 $anoAtual = date('Y');
+$baseUrl = getBaseUrl();
 ?>
 
 <!-- Conteúdo principal -->
@@ -33,7 +44,7 @@ $anoAtual = date('Y');
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item">
-                        <a href="<?= BASE_URL ?>/views/dashboard.php" style="color: var(--primary-600);">
+                        <a href="<?= $baseUrl ?>/views/dashboard.php" style="color: var(--primary-600);">
                             <i class="fas fa-home me-1"></i> Dashboard
                         </a>
                     </li>
@@ -63,7 +74,7 @@ $anoAtual = date('Y');
         </div>
     </div>
 
-    <!-- Card de Filtros - VERSÃO SIMPLIFICADA E CORRIGIDA -->
+    <!-- Card de Filtros -->
     <div class="modern-card mb-4" data-aos="fade-up" data-aos-delay="100">
         <div class="card-header-modern bg-primary">
             <h5 class="mb-0 text-white">
@@ -71,7 +82,6 @@ $anoAtual = date('Y');
             </h5>
         </div>
         <div class="card-body p-4">
-            <!-- Linha 1 -->
             <div class="row">
                 <div class="col-md-3 mb-3">
                     <label class="form-label fw-semibold">
@@ -126,24 +136,11 @@ $anoAtual = date('Y');
                 </div>
             </div>
 
-            <!-- Linha 2 -->
             <div class="row">
-                <div class="col-md-3 mb-3">
-                    <!-- Espaço vazio para alinhamento -->
-                </div>
-
-                <div class="col-md-3 mb-3">
-                    <!-- Espaço vazio para alinhamento -->
-                </div>
-
-                <div class="col-md-2 mb-3">
-                    <!-- Espaço vazio para alinhamento -->
-                </div>
-
-                <div class="col-md-2 mb-3">
-                    <!-- Espaço vazio para alinhamento -->
-                </div>
-
+                <div class="col-md-3 mb-3"></div>
+                <div class="col-md-3 mb-3"></div>
+                <div class="col-md-2 mb-3"></div>
+                <div class="col-md-2 mb-3"></div>
                 <div class="col-md-2 mb-3">
                     <label class="form-label fw-semibold">
                         <i class="fas fa-calendar-week me-1 text-primary"></i> Data Fim
@@ -152,7 +149,6 @@ $anoAtual = date('Y');
                 </div>
             </div>
 
-            <!-- Linha 3 - Botões -->
             <div class="row mt-2">
                 <div class="col-12">
                     <button type="button" id="btnFiltrar" class="btn btn-modern btn-modern-primary">
@@ -312,7 +308,6 @@ $anoAtual = date('Y');
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
 }
-/* Garantir que os campos de data apareçam corretamente */
 input[type="date"] {
     display: block;
     width: 100%;
@@ -333,11 +328,13 @@ input[type="date"]:focus {
 </style>
 
 <script>
+// Variáveis globais para o listar.js
+const API_URL = '../../controllers/chamada.php';
 const USUARIO_PERFIL = '<?= $perfil ?>';
 const USUARIO_CONGR_ID = <?= json_encode($congregacao_id) ?>;
-const BASE_URL = '../../controllers/chamada.php';
 const ANO_ATUAL = <?= $anoAtual ?>;
 </script>
+
 <script src="js/listar.js"></script>
 
 <?php

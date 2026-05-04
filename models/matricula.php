@@ -288,5 +288,40 @@ class Matricula {
             return ['sucesso' => false, 'mensagem' => $e->getMessage()];
         }
     }
+      * Busca matrícula ativa por ID do aluno
+     */
+    public function buscarMatriculaAtivaPorAlunoId($aluno_id) {
+        try {
+            $sql = "SELECT * FROM matriculas 
+                    WHERE aluno_id = :aluno_id 
+                      AND status = 'ativo' 
+                    ORDER BY data_matricula DESC 
+                    LIMIT 1";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([':aluno_id' => $aluno_id]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            throw new Exception("Erro ao buscar matrícula ativa do aluno.");
+        }
+    }
+    
+    /**
+     * Busca todas as matrículas de um aluno
+     */
+    public function buscarMatriculasPorAlunoId($aluno_id) {
+        try {
+            $sql = "SELECT m.*, c.nome as classe_nome, cg.nome as congregacao_nome 
+                    FROM matriculas m
+                    JOIN classes c ON m.classe_id = c.id
+                    JOIN congregacoes cg ON m.congregacao_id = cg.id
+                    WHERE m.aluno_id = :aluno_id
+                    ORDER BY m.data_matricula DESC";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([':aluno_id' => $aluno_id]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            throw new Exception("Erro ao buscar matrículas do aluno.");
+        }
+    }
 }
 ?>

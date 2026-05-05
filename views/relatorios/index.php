@@ -1,26 +1,25 @@
 <?php 
-// Garantir que a sessão está ativa
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// views/relatorios/index.php
+// Página inicial da central de relatórios
+
+require_once __DIR__ . '/../../controllers/RelatorioController.php';
+
+session_start();
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: ../login.php');
+    exit();
 }
 
-// Verificar se usuário está logado
-require_once __DIR__ . '/../../auth/valida_sessao.php';
-
-// Configurar título da página
 $pageTitle = 'Relatórios E.B.D';
-
-// Incluir header padronizado
 require_once __DIR__ . '/../../includes/header.php'; 
 ?>
 
-<!-- Conteúdo principal -->
 <div class="container-fluid px-4">
     <!-- Cabeçalho da Página -->
     <div class="mb-4" data-aos="fade-down">
         <h1 class="display-5 fw-bold mb-2" style="color: var(--gray-800);">
             <i class="fas fa-chart-line me-3" style="color: var(--primary-600);"></i>
-            Relatórios E.B.D
+            Central de Relatórios E.B.D
         </h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
@@ -36,22 +35,89 @@ require_once __DIR__ . '/../../includes/header.php';
         </nav>
         <p class="text-muted mt-2 mb-0">
             <i class="fas fa-info-circle me-1"></i>
-            Acesse relatórios estatísticos e análises da Escola Bíblica Dominical
+            Acesse relatórios estatísticos, análises de frequência e gestão da Escola Bíblica Dominical
         </p>
     </div>
 
-    <!-- Cards de Relatórios -->
-    <div class="row g-4" data-aos="fade-up" data-aos-delay="100">
-        <!-- Relatório Individual de Frequência -->
-        <div class="col-12 col-md-6 col-lg-3">
-            <a href="./relatorio_consolidado.php" class="text-decoration-none">
+    <!-- Seção 1: Relatórios de Frequência -->
+    <div class="mb-4" data-aos="fade-up">
+        <h3 class="section-title">
+            <i class="fas fa-calendar-check me-2" style="color: var(--primary-500);"></i>
+            Relatórios de Frequência
+        </h3>
+        <p class="text-muted mb-3">Acompanhe a assiduidade dos alunos e classes</p>
+    </div>
+
+    <div class="row g-4 mb-5" data-aos="fade-up" data-aos-delay="100">
+        <!-- Relatório Consolidado -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="relatorio_consolidado.php" class="text-decoration-none">
                 <div class="report-card">
                     <div class="report-icon bg-primary">
-                        <i class="fas fa-users fa-2x text-white"></i>
+                        <i class="fas fa-chart-pie fa-2x text-white"></i>
                     </div>
                     <div class="report-content">
-                        <h5 class="report-title">Frequência Individual</h5>
-                        <p class="report-description">Relatório consolidado de frequência por aluno</p>
+                        <h5 class="report-title">Consolidado de Classes</h5>
+                        <p class="report-description">Visão geral por classe: matrículas, presenças, ofertas</p>
+                        <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Presenças por Aluno -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="presencas_aluno.php" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-icon bg-danger">
+                        <i class="fas fa-user-check fa-2x text-white"></i>
+                    </div>
+                    <div class="report-content">
+                        <h5 class="report-title">Presenças por Aluno</h5>
+                        <p class="report-description">Análise individual de frequência por período</p>
+                        <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Frequência de Alunos -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="frequencia_alunos.php" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-icon bg-warning">
+                        <i class="fas fa-chart-line fa-2x text-white"></i>
+                    </div>
+                    <div class="report-content">
+                        <h5 class="report-title">Frequência de Alunos</h5>
+                        <p class="report-description">Resumo consolidado de presenças/ausências</p>
+                        <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Seção 2: Relatórios de Gestão -->
+    <div class="mb-4" data-aos="fade-up" data-aos-delay="150">
+        <h3 class="section-title">
+            <i class="fas fa-chart-simple me-2" style="color: var(--success);"></i>
+            Relatórios de Gestão
+        </h3>
+        <p class="text-muted mb-3">Gerencie alunos, aniversariantes e estatísticas da EBD</p>
+    </div>
+
+    <div class="row g-4 mb-5" data-aos="fade-up" data-aos-delay="200">
+        <!-- Aniversariantes -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="aniversariantes.php" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-icon bg-success">
+                        <i class="fas fa-birthday-cake fa-2x text-white"></i>
+                    </div>
+                    <div class="report-content">
+                        <h5 class="report-title">Aniversariantes</h5>
+                        <p class="report-description">Aniversariantes do mês por classe</p>
                         <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
                     </div>
                 </div>
@@ -59,47 +125,31 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
 
         <!-- Relatório Geral -->
-        <div class="col-12 col-md-6 col-lg-3">
-            <a href="./relatorio_geral.php" class="text-decoration-none">
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="relatorio_geral.php" class="text-decoration-none">
                 <div class="report-card">
-                    <div class="report-icon bg-danger">
+                    <div class="report-icon bg-secondary">
                         <i class="fas fa-chart-bar fa-2x text-white"></i>
                     </div>
                     <div class="report-content">
                         <h5 class="report-title">Relatório Geral</h5>
-                        <p class="report-description">Visão geral de faltas e presenças</p>
+                        <p class="report-description">Visão completa com todos os indicadores</p>
                         <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
                     </div>
                 </div>
             </a>
         </div>
 
-        <!-- Aniversariantes do Mês -->
-        <div class="col-12 col-md-6 col-lg-3">
-            <a href="./aniversariantes.php" class="text-decoration-none">
+        <!-- Relatório por Período -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <a href="presencas_aluno.php" class="text-decoration-none">
                 <div class="report-card">
-                    <div class="report-icon bg-success">
-                        <i class="fas fa-birthday-cake fa-2x text-white"></i>
+                    <div class="report-icon bg-info">
+                        <i class="fas fa-calendar-alt fa-2x text-white"></i>
                     </div>
                     <div class="report-content">
-                        <h5 class="report-title">Aniversariantes</h5>
-                        <p class="report-description">Aniversariantes do mês atual</p>
-                        <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
-                    </div>
-                </div>
-            </a>
-        </div>
-
-        <!-- Total Faltas & Presenças -->
-        <div class="col-12 col-md-6 col-lg-3">
-            <a href="./frequencias_geral.php" class="text-decoration-none">
-                <div class="report-card">
-                    <div class="report-icon bg-warning">
-                        <i class="fas fa-chart-pie fa-2x text-white"></i>
-                    </div>
-                    <div class="report-content">
-                        <h5 class="report-title">Estatísticas Gerais</h5>
-                        <p class="report-description">Total de faltas e presenças por classe</p>
+                        <h5 class="report-title">Por Período</h5>
+                        <p class="report-description">Análise temporal com filtro de trimestre/datas</p>
                         <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
                     </div>
                 </div>
@@ -107,44 +157,87 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
     </div>
 
-    <!-- Seção de Estatísticas Rápidas (Opcional) -->
-    <div class="row mt-5" data-aos="fade-up" data-aos-delay="200">
+    <!-- Seção 3: Relatórios Financeiros -->
+    <div class="mb-4" data-aos="fade-up" data-aos-delay="250">
+        <h3 class="section-title">
+            <i class="fas fa-dollar-sign me-2" style="color: var(--warning);"></i>
+            Relatórios Financeiros
+        </h3>
+        <p class="text-muted mb-3">Acompanhamento de ofertas e recursos da EBD</p>
+    </div>
+
+    <div class="row g-4 mb-5" data-aos="fade-up" data-aos-delay="300">
+        <!-- Ofertas por Classe -->
+        <div class="col-12 col-md-6">
+            <a href="relatorio_consolidado.php" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-icon bg-warning">
+                        <i class="fas fa-coins fa-2x text-white"></i>
+                    </div>
+                    <div class="report-content">
+                        <h5 class="report-title">Ofertas por Classe</h5>
+                        <p class="report-description">Consolidação de ofertas no relatório consolidado</p>
+                        <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Recursos por Classe -->
+        <div class="col-12 col-md-6">
+            <a href="relatorio_consolidado.php" class="text-decoration-none">
+                <div class="report-card">
+                    <div class="report-icon bg-info">
+                        <i class="fas fa-book-open fa-2x text-white"></i>
+                    </div>
+                    <div class="report-content">
+                        <h5 class="report-title">Recursos por Classe</h5>
+                        <p class="report-description">Bíblias e revistas utilizadas por classe</p>
+                        <span class="report-link">Acessar <i class="fas fa-arrow-right ms-1"></i></span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Estatísticas Rápidas -->
+    <div class="row mt-5" data-aos="fade-up" data-aos-delay="350">
         <div class="col-12">
             <div class="modern-card">
-                <div class="card-header-modern bg-primary">
+                <div class="card-header-modern bg-primary d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="mb-0 text-white">
-                        <i class="fas fa-chart-simple me-2"></i> Estatísticas Rápidas
+                        <i class="fas fa-chart-simple me-2"></i> Relatórios Disponíveis
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <div class="row g-4" id="statsQuick">
-                        <div class="col-6 col-md-3 text-center">
+                    <div class="row g-4 text-center">
+                        <div class="col-6 col-md-3">
                             <div class="stat-circle bg-primary bg-opacity-10">
-                                <i class="fas fa-users fa-2x text-primary"></i>
+                                <i class="fas fa-chart-pie fa-2x text-primary"></i>
                             </div>
-                            <h3 class="mt-2 mb-0" id="totalAlunos">--</h3>
-                            <small class="text-muted">Total de Alunos</small>
+                            <h4 class="mt-2 mb-0">4</h4>
+                            <small class="text-muted">Relatórios de Frequência</small>
                         </div>
-                        <div class="col-6 col-md-3 text-center">
+                        <div class="col-6 col-md-3">
                             <div class="stat-circle bg-success bg-opacity-10">
-                                <i class="fas fa-chalkboard-user fa-2x text-success"></i>
+                                <i class="fas fa-users fa-2x text-success"></i>
                             </div>
-                            <h3 class="mt-2 mb-0" id="totalClasses">--</h3>
-                            <small class="text-muted">Classes Ativas</small>
+                            <h4 class="mt-2 mb-0">3</h4>
+                            <small class="text-muted">Relatórios de Gestão</small>
                         </div>
-                        <div class="col-6 col-md-3 text-center">
+                        <div class="col-6 col-md-3">
                             <div class="stat-circle bg-warning bg-opacity-10">
-                                <i class="fas fa-user-check fa-2x text-warning"></i>
+                                <i class="fas fa-dollar-sign fa-2x text-warning"></i>
                             </div>
-                            <h3 class="mt-2 mb-0" id="totalPresencasMes">--</h3>
-                            <small class="text-muted">Presenças (Mês)</small>
+                            <h4 class="mt-2 mb-0">2</h4>
+                            <small class="text-muted">Relatórios Financeiros</small>
                         </div>
-                        <div class="col-6 col-md-3 text-center">
+                        <div class="col-6 col-md-3">
                             <div class="stat-circle bg-info bg-opacity-10">
-                                <i class="fas fa-dollar-sign fa-2x text-info"></i>
+                                <i class="fas fa-calendar-alt fa-2x text-info"></i>
                             </div>
-                            <h3 class="mt-2 mb-0" id="totalOfertasMes">--</h3>
-                            <small class="text-muted">Ofertas (Mês)</small>
+                            <h4 class="mt-2 mb-0">Períodos</h4>
+                            <small class="text-muted">Trimestres/Datas</small>
                         </div>
                     </div>
                 </div>
@@ -153,12 +246,12 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- Dica de Relatórios -->
-    <div class="alert-ebd alert-info-ebd mt-4" data-aos="fade-up" data-aos-delay="300">
+    <div class="alert-ebd alert-info-ebd mt-4" data-aos="fade-up" data-aos-delay="400">
         <div class="d-flex align-items-center gap-3 flex-wrap">
             <i class="fas fa-lightbulb fa-2x" style="color: var(--info);"></i>
             <div class="flex-grow-1">
                 <strong class="d-block mb-1">Dica:</strong>
-                <span>Utilize os relatórios para acompanhar o desempenho das classes e identificar alunos com baixa frequência para acompanhamento pastoral.</span>
+                <span>Utilize os relatórios para acompanhar o desempenho das classes e identificar alunos com baixa frequência para acompanhamento pastoral. Os relatórios podem ser filtrados por período, classe e congregação.</span>
             </div>
         </div>
     </div>
@@ -171,7 +264,16 @@ require_once __DIR__ . '/../../includes/header.php';
     color: var(--gray-500);
 }
 
-/* Cards de relatórios modernos */
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-200);
+    display: inline-block;
+}
+
 .report-card {
     background: white;
     border-radius: 20px;
@@ -229,20 +331,21 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 
 .report-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--gray-800);
     margin-bottom: 0.25rem;
 }
 
 .report-description {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--gray-500);
     margin-bottom: 0.5rem;
+    line-height: 1.4;
 }
 
 .report-link {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--primary-600);
     display: inline-flex;
@@ -255,7 +358,6 @@ require_once __DIR__ . '/../../includes/header.php';
     color: var(--primary-700);
 }
 
-/* Círculos de estatísticas */
 .stat-circle {
     width: 70px;
     height: 70px;
@@ -271,7 +373,6 @@ require_once __DIR__ . '/../../includes/header.php';
     transform: scale(1.05);
 }
 
-/* Alertas personalizados */
 .alert-info-ebd {
     background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
     border-left: 4px solid var(--info);
@@ -279,7 +380,19 @@ require_once __DIR__ . '/../../includes/header.php';
     padding: 1rem 1.25rem;
 }
 
-/* Responsividade */
+.btn-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
 @media (max-width: 768px) {
     .display-5 {
         font-size: 1.5rem;
@@ -299,7 +412,11 @@ require_once __DIR__ . '/../../includes/header.php';
     }
     
     .report-title {
-        font-size: 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .report-description {
+        font-size: 0.7rem;
     }
     
     .stat-circle {
@@ -310,42 +427,26 @@ require_once __DIR__ . '/../../includes/header.php';
     .stat-circle i {
         font-size: 1.5rem !important;
     }
+    
+    .section-title {
+        font-size: 1.1rem;
+    }
+}
+
+@media print {
+    .navbar, .breadcrumb, .btn-modern, .alert-ebd, .stat-circle {
+        display: none !important;
+    }
+    
+    .modern-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
 }
 </style>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-// Função para buscar estatísticas rápidas
-function carregarEstatisticas() {
-    // Se você tiver uma API para buscar estatísticas, implemente aqui
-    // Exemplo de chamada AJAX:
-    /*
-    $.ajax({
-        url: '../../controllers/relatorios.php',
-        method: 'POST',
-        data: { acao: 'estatisticas_rapidas' },
-        dataType: 'json',
-        success: function(response) {
-            if (response.sucesso) {
-                $('#totalAlunos').text(response.total_alunos || '0');
-                $('#totalClasses').text(response.total_classes || '0');
-                $('#totalPresencasMes').text(response.total_presencas_mes || '0');
-                $('#totalOfertasMes').text('R$ ' + (response.total_ofertas_mes || '0').toFixed(2));
-            }
-        },
-        error: function() {
-            console.log('Erro ao carregar estatísticas');
-        }
-    });
-    */
-    
-    // Dados de exemplo (remova quando implementar a API)
-    $('#totalAlunos').text('156');
-    $('#totalClasses').text('8');
-    $('#totalPresencasMes').text('1,234');
-    $('#totalOfertasMes').text('R$ 2.450,00');
-}
-
-// Inicializar AOS
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof AOS !== 'undefined') {
         AOS.init({
@@ -354,8 +455,6 @@ document.addEventListener('DOMContentLoaded', function() {
             offset: 50
         });
     }
-    
-    carregarEstatisticas();
 });
 </script>
 

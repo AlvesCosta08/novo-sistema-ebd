@@ -234,68 +234,9 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <!-- Cards Mobile (Top Rankings) -->
-        <div class="d-md-none mb-4" data-aos="fade-up" data-aos-delay="250">
-            <?php if (!empty($top_presencas)): ?>
-            <div class="modern-card mb-3">
-                <div class="card-header-modern bg-success">
-                    <h5 class="mb-0 text-white">
-                        <i class="fas fa-trophy me-2"></i> Top 5 Presenças
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <?php foreach($top_presencas as $i => $aluno): ?>
-                        <div class="ranking-item d-flex justify-content-between align-items-center p-3 border-bottom">
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="ranking-position bg-success text-white"><?= $i+1 ?></span>
-                                <div>
-                                    <strong class="d-block"><?= htmlspecialchars($aluno['aluno']) ?></strong>
-                                    <small class="text-muted"><?= htmlspecialchars($aluno['classe']) ?></small>
-                                </div>
-                            </div>
-                            <div class="text-end">
-                                <span class="fw-bold text-success"><?= number_format($aluno['presencas'], 0, ',', '.') ?> presenças</span>
-                                <br>
-                                <small><?= number_format($aluno['frequencia'], 1, ',', '.') ?>%</small>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-            
-            <?php if (!empty($top_faltas)): ?>
-            <div class="modern-card">
-                <div class="card-header-modern" style="background: linear-gradient(135deg, var(--danger) 0%, #b91c1c 100%);">
-                    <h5 class="mb-0 text-white">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Top 5 Faltas
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <?php foreach($top_faltas as $i => $aluno): ?>
-                        <div class="ranking-item d-flex justify-content-between align-items-center p-3 border-bottom">
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="ranking-position bg-danger text-white"><?= $i+1 ?></span>
-                                <div>
-                                    <strong class="d-block"><?= htmlspecialchars($aluno['aluno']) ?></strong>
-                                    <small class="text-muted"><?= htmlspecialchars($aluno['classe']) ?></small>
-                                </div>
-                            </div>
-                            <div class="text-end">
-                                <span class="fw-bold text-danger"><?= number_format($aluno['faltas'], 0, ',', '.') ?> faltas</span>
-                                <br>
-                                <small><?= number_format($aluno['frequencia'], 1, ',', '.') ?>%</small>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- Rankings Top 5 (Desktop) -->
+        <!-- Rankings Top 5 -->
         <?php if (!empty($top_presencas) || !empty($top_faltas)): ?>
-        <div class="row mb-4 g-4 d-none d-md-flex" data-aos="fade-up" data-aos-delay="250">
+        <div class="row mb-4 g-4" data-aos="fade-up" data-aos-delay="250">
             <div class="col-12 col-md-6">
                 <div class="modern-card h-100">
                     <div class="card-header-modern bg-success">
@@ -354,12 +295,17 @@ require_once __DIR__ . '/../../includes/header.php';
         </div>
         <?php endif; ?>
 
-        <!-- Tabela Completa (Desktop) -->
-        <div class="modern-card d-none d-md-block" data-aos="fade-up" data-aos-delay="300">
+        <!-- Tabela Completa -->
+        <div class="modern-card" data-aos="fade-up" data-aos-delay="300">
             <div class="card-header-modern bg-primary d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 class="mb-0 text-white">
                     <i class="fas fa-table me-2"></i> Relação Completa de Alunos
                 </h5>
+                <div class="d-flex gap-2">
+                    <button onclick="exportarCSV()" class="btn btn-sm" style="background: #27ae60; color: white;">
+                        <i class="fas fa-file-excel me-1"></i> Excel
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -405,68 +351,6 @@ require_once __DIR__ . '/../../includes/header.php';
             </div>
         </div>
 
-        <!-- Cards Mobile (Lista de Alunos) -->
-        <div class="d-md-none mb-4" data-aos="fade-up" data-aos-delay="300">
-            <div class="modern-card">
-                <div class="card-header-modern bg-primary">
-                    <h5 class="mb-0 text-white">
-                        <i class="fas fa-table me-2"></i> Lista de Alunos
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <?php foreach($alunos as $aluno): 
-                        $frequenciaCor = '';
-                        if ($aluno['frequencia'] >= 75) {
-                            $frequenciaCor = '#10b981';
-                        } elseif ($aluno['frequencia'] >= 50) {
-                            $frequenciaCor = '#f59e0b';
-                        } else {
-                            $frequenciaCor = '#ef4444';
-                        }
-                    ?>
-                        <div class="ranking-item p-3 border-bottom">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div>
-                                    <strong class="d-block"><?= htmlspecialchars($aluno['aluno']) ?></strong>
-                                    <small class="text-muted"><?= htmlspecialchars($aluno['classe']) ?></small>
-                                </div>
-                                <span class="badge-trimestre"><?= htmlspecialchars($aluno['congregacao']) ?></span>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <div class="text-center p-2" style="background: rgba(16, 185, 129, 0.1); border-radius: 10px;">
-                                        <i class="fas fa-user-check text-success"></i>
-                                        <div class="fw-bold text-success"><?= number_format($aluno['presencas'], 0, ',', '.') ?></div>
-                                        <small class="text-muted">Presenças</small>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="text-center p-2" style="background: rgba(239, 68, 68, 0.1); border-radius: 10px;">
-                                        <i class="fas fa-user-times text-danger"></i>
-                                        <div class="fw-bold text-danger"><?= number_format($aluno['faltas'], 0, ',', '.') ?></div>
-                                        <small class="text-muted">Faltas</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-2">
-                                <div class="progress-container mt-2">
-                                    <div class="progress-bar-custom" style="width: <?= $aluno['frequencia'] ?>%; background: <?= $frequenciaCor ?>;">
-                                        <span><?= number_format($aluno['frequencia'], 1, ',', '.') ?>%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-                <div class="card-footer bg-light text-center">
-                    <strong>Totais:</strong> 
-                    <?= number_format($total_presencas, 0, ',', '.') ?> Presenças | 
-                    <?= number_format($total_faltas, 0, ',', '.') ?> Faltas | 
-                    Média: <?= number_format($media_frequencia, 1, ',', '.') ?>%
-                </div>
-            </div>
-        </div>
-
         <div class="alert alert-info mt-4" data-aos="fade-up" data-aos-delay="350">
             <i class="fas fa-chart-line me-2"></i>
             <strong>Análise de Frequência:</strong> Alunos com frequência abaixo de 75% merecem atenção especial.
@@ -503,6 +387,7 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 
 .progress-bar-custom {
+    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
     border-radius: 20px;
     padding: 0.25rem 0.5rem;
     text-align: center;
@@ -529,16 +414,6 @@ require_once __DIR__ . '/../../includes/header.php';
     padding: 1rem 1.25rem;
 }
 
-.badge-trimestre {
-    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-block;
-}
-
 .btn-modern {
     padding: 0.5rem 1rem;
     border-radius: 10px;
@@ -563,16 +438,8 @@ require_once __DIR__ . '/../../includes/header.php';
 }
 
 @media print {
-    .btn-modern, .alert, .progress-container, .btn-sm, .d-md-none {
+    .btn-modern, .alert, .progress-container, .btn-sm {
         display: none !important;
-    }
-    
-    .d-none.d-md-block {
-        display: block !important;
-    }
-    
-    .ranking-item {
-        break-inside: avoid;
     }
 }
 </style>

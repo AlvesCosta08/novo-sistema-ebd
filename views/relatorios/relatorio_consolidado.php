@@ -1,92 +1,33 @@
 <?php
-// Garantir que a sessão está ativa
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// views/relatorios/relatorio_consolidado.php
+// Relatório consolidado de classes com totais gerais
+
+require_once __DIR__ . '/../../controllers/RelatorioController.php';
+
+session_start();
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: ../login.php');
+    exit();
 }
 
-// Verificar se usuário está logado
-require_once __DIR__ . '/../../auth/valida_sessao.php';
-
-// Configurar título da página
-$pageTitle = 'Relatório Consolidado de Classes';
-
-// Incluir header padronizado
-require_once __DIR__ . '/../includes/header.php';
-
-// Conexão com o banco de dados
-require_once __DIR__ . '/../../config/conexao.php';
-
-function formatarMoeda($valor) {
-    return 'R$ ' . number_format((float)$valor, 2, ',', '.');
-}
+$relatorioController = new RelatorioController();
 
 // Capturar filtros
 $trimestre_filtro = $_GET['trimestre'] ?? '';
 $congregacao_filtro = $_GET['congregacao'] ?? '';
+$data_inicio = $_GET['data_inicio'] ?? '';
+$data_fim = $_GET['data_fim'] ?? '';
 
-// Totais gerais
-$totais = [
-    'matriculados' => 0,
-    'presentes' => 0,
-    'ausentes' => 0,
-    'justificados' => 0,
-    'biblias' => 0,
-    'revistas' => 0,
-    'visitantes' => 0,
-    'oferta' => 0
-];
+// Buscar dados usando o controller
+$dados = $relatorioController->getRelatorioConsolidado($trimestre_filtro, $congregacao_filtro, $data_inicio, $data_fim);
 
-$sql = "SELECT 
-            cg.nome AS congregacao,
-            cl.nome AS classe,
-            m.trimestre,
-            COUNT(DISTINCT m.aluno_id) AS matriculados,
-            COUNT(DISTINCT CASE WHEN p.presente = 'presente' THEN p.aluno_id END) AS presentes,
-            COUNT(DISTINCT CASE WHEN p.presente = 'ausente' THEN p.aluno_id END) AS ausentes,
-            COUNT(DISTINCT CASE WHEN p.presente = 'justificado' THEN p.aluno_id END) AS justificados,
-            COALESCE(SUM(ch.total_biblias), 0) AS biblias,
-            COALESCE(SUM(ch.total_revistas), 0) AS revistas,
-            COALESCE(SUM(ch.total_visitantes), 0) AS visitantes,
-            COALESCE(SUM(ch.oferta_classe), 0) AS oferta
-        FROM congregacoes cg
-        JOIN matriculas m ON m.congregacao_id = cg.id
-        JOIN classes cl ON cl.id = m.classe_id
-        LEFT JOIN chamadas ch ON ch.classe_id = cl.id
-        LEFT JOIN presencas p ON p.chamada_id = ch.id
-        WHERE m.status = 'ativo'";
+// Calcular totais usando o controller
+$totais = $relatorioController->calcularTotais($dados);
 
-$params = [];
-
-if (!empty($trimestre_filtro)) {
-    $sql .= " AND m.trimestre = :trimestre";
-    $params[':trimestre'] = $trimestre_filtro;
-}
-
-if (!empty($congregacao_filtro)) {
-    $sql .= " AND cg.nome LIKE :congregacao";
-    $params[':congregacao'] = '%' . $congregacao_filtro . '%';
-}
-
-$sql .= " GROUP BY cg.nome, cl.nome, m.trimestre ORDER BY cg.nome, cl.nome";
-
-$stmt = $conn->prepare($sql);
-$stmt->execute($params);
-$dados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Calcular totais
-foreach ($dados as $linha) {
-    $totais['matriculados'] += $linha['matriculados'];
-    $totais['presentes'] += $linha['presentes'];
-    $totais['ausentes'] += $linha['ausentes'];
-    $totais['justificados'] += $linha['justificados'];
-    $totais['biblias'] += $linha['biblias'];
-    $totais['revistas'] += $linha['revistas'];
-    $totais['visitantes'] += $linha['visitantes'];
-    $totais['oferta'] += $linha['oferta'];
-}
+$pageTitle = 'Relatório Consolidado de Classes';
+require_once __DIR__ . '/../../includes/header.php';
 ?>
 
-<!-- Conteúdo principal -->
 <div class="container-fluid px-4">
     <!-- Cabeçalho da Página -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" data-aos="fade-down">
@@ -117,8 +58,11 @@ foreach ($dados as $linha) {
                 Visão geral consolidada de matrículas, frequências e recursos por classe e congregação
             </p>
         </div>
-        <div>
-            <button onclick="window.print()" class="btn btn-modern btn-outline-secondary">
+        <div class="d-flex gap-2">
+            <button onclick="exportarCSV()" class="btn btn-modern btn-success">
+                <i class="fas fa-file-csv me-2"></i> Exportar CSV
+            </button>
+            <button onclick="window.print()" class="btn btn-modern btn-primary">
                 <i class="fas fa-print me-2"></i> Imprimir
             </button>
         </div>
@@ -131,7 +75,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-primary bg-opacity-10 text-primary">
                     <i class="fas fa-users"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['matriculados']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['matriculados'], 0, ',', '.') ?></div>
                 <div class="stat-label">Total Matrículas</div>
             </div>
         </div>
@@ -140,7 +84,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-success bg-opacity-10 text-success">
                     <i class="fas fa-user-check"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['presentes']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['presentes'], 0, ',', '.') ?></div>
                 <div class="stat-label">Total Presenças</div>
             </div>
         </div>
@@ -149,7 +93,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-danger bg-opacity-10 text-danger">
                     <i class="fas fa-user-times"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['ausentes']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['ausentes'], 0, ',', '.') ?></div>
                 <div class="stat-label">Total Ausências</div>
             </div>
         </div>
@@ -158,7 +102,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-warning bg-opacity-10 text-warning">
                     <i class="fas fa-user-clock"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['justificados']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['justificados'], 0, ',', '.') ?></div>
                 <div class="stat-label">Justificados</div>
             </div>
         </div>
@@ -170,7 +114,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-info bg-opacity-10 text-info">
                     <i class="fas fa-book"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['biblias']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['biblias'], 0, ',', '.') ?></div>
                 <div class="stat-label">Total Bíblias</div>
             </div>
         </div>
@@ -179,7 +123,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-secondary bg-opacity-10 text-secondary">
                     <i class="fas fa-magazine"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['revistas']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['revistas'], 0, ',', '.') ?></div>
                 <div class="stat-label">Total Revistas</div>
             </div>
         </div>
@@ -188,7 +132,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-primary bg-opacity-10 text-primary">
                     <i class="fas fa-user-plus"></i>
                 </div>
-                <div class="stat-value"><?= number_format($totais['visitantes']) ?></div>
+                <div class="stat-value"><?= number_format((float)$totais['visitantes'], 0, ',', '.') ?></div>
                 <div class="stat-label">Visitantes</div>
             </div>
         </div>
@@ -197,7 +141,7 @@ foreach ($dados as $linha) {
                 <div class="stat-icon bg-success bg-opacity-10 text-success">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="stat-value"><?= formatarMoeda($totais['oferta']) ?></div>
+                <div class="stat-value"><?= RelatorioController::formatarMoeda($totais['oferta']) ?></div>
                 <div class="stat-label">Total Ofertas</div>
             </div>
         </div>
@@ -205,14 +149,30 @@ foreach ($dados as $linha) {
 
     <!-- Card de Filtros -->
     <div class="modern-card mb-4" data-aos="fade-up" data-aos-delay="200">
-        <div class="card-header-modern bg-primary">
-            <h5 class="mb-0 text-white">
+        <div class="card-header-modern bg-gray-100">
+            <h5 class="mb-0">
                 <i class="fas fa-filter me-2"></i> Filtros de Pesquisa
             </h5>
         </div>
         <div class="card-body p-4">
-            <form method="GET" class="row g-4">
-                <div class="col-12 col-md-4">
+            <form method="GET" class="row g-4" id="formFiltros">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-alt me-1 text-primary"></i> Data Início
+                    </label>
+                    <input type="date" name="data_inicio" class="form-control" 
+                           value="<?= htmlspecialchars($data_inicio) ?>">
+                </div>
+                
+                <div class="col-12 col-md-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-check me-1 text-primary"></i> Data Fim
+                    </label>
+                    <input type="date" name="data_fim" class="form-control" 
+                           value="<?= htmlspecialchars($data_fim) ?>">
+                </div>
+                
+                <div class="col-12 col-md-3">
                     <label class="form-label">
                         <i class="fas fa-chart-line me-1 text-primary"></i> Trimestre
                     </label>
@@ -224,7 +184,7 @@ foreach ($dados as $linha) {
                     </small>
                 </div>
                 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                     <label class="form-label">
                         <i class="fas fa-church me-1 text-primary"></i> Congregação
                     </label>
@@ -233,13 +193,13 @@ foreach ($dados as $linha) {
                            value="<?= htmlspecialchars($congregacao_filtro) ?>">
                 </div>
                 
-                <div class="col-12 col-md-4 d-flex align-items-end">
-                    <div class="d-flex gap-2 flex-wrap w-100">
-                        <button type="submit" class="btn btn-modern btn-modern-primary flex-grow-1">
+                <div class="col-12">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-modern btn-modern-primary">
                             <i class="fas fa-search me-2"></i> Filtrar
                         </button>
                         <a href="relatorio_consolidado.php" class="btn btn-modern btn-outline-secondary">
-                            <i class="fas fa-eraser me-2"></i> Limpar
+                            <i class="fas fa-eraser me-2"></i> Limpar Filtros
                         </a>
                     </div>
                 </div>
@@ -247,8 +207,46 @@ foreach ($dados as $linha) {
         </div>
     </div>
 
-    <!-- Tabela de Dados Consolidados -->
-    <div class="modern-card" data-aos="fade-up" data-aos-delay="300">
+    <!-- Cards Mobile (Resumo) -->
+    <div class="d-md-none mb-4" data-aos="fade-up" data-aos-delay="250">
+        <div class="modern-card">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="p-2 bg-primary bg-opacity-10 rounded">
+                            <i class="fas fa-users fa-2x text-primary"></i>
+                            <h5 class="mb-0 mt-2"><?= number_format((float)$totais['matriculados'], 0, ',', '.') ?></h5>
+                            <small>Matrículas</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="p-2 bg-success bg-opacity-10 rounded">
+                            <i class="fas fa-user-check fa-2x text-success"></i>
+                            <h5 class="mb-0 mt-2"><?= number_format((float)$totais['presentes'], 0, ',', '.') ?></h5>
+                            <small>Presenças</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="p-2 bg-danger bg-opacity-10 rounded">
+                            <i class="fas fa-user-times fa-2x text-danger"></i>
+                            <h5 class="mb-0 mt-2"><?= number_format((float)$totais['ausentes'], 0, ',', '.') ?></h5>
+                            <small>Ausências</small>
+                        </div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="p-2 bg-warning bg-opacity-10 rounded">
+                            <i class="fas fa-dollar-sign fa-2x text-warning"></i>
+                            <h5 class="mb-0 mt-2"><?= RelatorioController::formatarMoeda($totais['oferta']) ?></h5>
+                            <small>Ofertas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Dados Consolidados (Desktop) -->
+    <div class="modern-card d-none d-md-block" data-aos="fade-up" data-aos-delay="300">
         <div class="card-header-modern bg-primary d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h5 class="mb-0 text-white">
                 <i class="fas fa-table me-2"></i> Dados Consolidados
@@ -256,7 +254,7 @@ foreach ($dados as $linha) {
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table id="tabelaConsolidada" class="custom-table mb-0" style="width:100%">
+                <table id="tabelaConsolidada" class="custom-table mb-0">
                     <thead>
                         <tr>
                             <th>Congregação</th>
@@ -279,14 +277,14 @@ foreach ($dados as $linha) {
                                     <td><i class="fas fa-church me-2" style="color: var(--primary-500);"></i><?= htmlspecialchars($linha['congregacao']) ?></td>
                                     <td><i class="fas fa-chalkboard-user me-2" style="color: var(--success);"></i><?= htmlspecialchars($linha['classe']) ?></td>
                                     <td class="text-center"><span class="badge-trimestre"><?= htmlspecialchars($linha['trimestre']) ?></span></td>
-                                    <td class="text-center fw-semibold"><?= number_format($linha['matriculados']) ?></td>
-                                    <td class="text-center fw-semibold text-success"><?= number_format($linha['presentes']) ?></td>
-                                    <td class="text-center fw-semibold text-danger"><?= number_format($linha['ausentes']) ?></td>
-                                    <td class="text-center fw-semibold text-warning"><?= number_format($linha['justificados']) ?></td>
-                                    <td class="text-center"><?= number_format($linha['biblias']) ?></td>
-                                    <td class="text-center"><?= number_format($linha['revistas']) ?></td>
-                                    <td class="text-center"><?= number_format($linha['visitantes']) ?></td>
-                                    <td class="text-end fw-bold text-success"><?= formatarMoeda($linha['oferta']) ?></td>
+                                    <td class="text-center fw-semibold"><?= number_format((float)$linha['matriculados'], 0, ',', '.') ?></td>
+                                    <td class="text-center fw-semibold text-success"><?= number_format((float)$linha['presentes'], 0, ',', '.') ?></td>
+                                    <td class="text-center fw-semibold text-danger"><?= number_format((float)$linha['ausentes'], 0, ',', '.') ?></td>
+                                    <td class="text-center fw-semibold text-warning"><?= number_format((float)$linha['justificados'], 0, ',', '.') ?></td>
+                                    <td class="text-center"><?= number_format((float)$linha['biblias'], 0, ',', '.') ?></td>
+                                    <td class="text-center"><?= number_format((float)$linha['revistas'], 0, ',', '.') ?></td>
+                                    <td class="text-center"><?= number_format((float)$linha['visitantes'], 0, ',', '.') ?></td>
+                                    <td class="text-end fw-bold text-success"><?= RelatorioController::formatarMoeda($linha['oferta']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
@@ -303,14 +301,14 @@ foreach ($dados as $linha) {
                     <tfoot class="table-footer">
                         <tr>
                             <td colspan="3" class="text-end fw-bold">TOTAIS GERAIS:</td>
-                            <td class="text-center fw-bold bg-primary bg-opacity-10"><?= number_format($totais['matriculados']) ?></td>
-                            <td class="text-center fw-bold bg-success bg-opacity-10 text-success"><?= number_format($totais['presentes']) ?></td>
-                            <td class="text-center fw-bold bg-danger bg-opacity-10 text-danger"><?= number_format($totais['ausentes']) ?></td>
-                            <td class="text-center fw-bold bg-warning bg-opacity-10 text-warning"><?= number_format($totais['justificados']) ?></td>
-                            <td class="text-center fw-bold bg-info bg-opacity-10"><?= number_format($totais['biblias']) ?></td>
-                            <td class="text-center fw-bold bg-secondary bg-opacity-10"><?= number_format($totais['revistas']) ?></td>
-                            <td class="text-center fw-bold bg-primary bg-opacity-10"><?= number_format($totais['visitantes']) ?></td>
-                            <td class="text-end fw-bold bg-success bg-opacity-10 text-success"><?= formatarMoeda($totais['oferta']) ?></td>
+                            <td class="text-center fw-bold bg-primary bg-opacity-10"><?= number_format((float)$totais['matriculados'], 0, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-success bg-opacity-10 text-success"><?= number_format((float)$totais['presentes'], 0, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-danger bg-opacity-10 text-danger"><?= number_format((float)$totais['ausentes'], 0, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-warning bg-opacity-10 text-warning"><?= number_format((float)$totais['justificados'], 0, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-info bg-opacity-10"><?= number_format((float)$totais['biblias'], 0, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-secondary bg-opacity-10"><?= number_format((float)$totais['revistas'], 0, ',', '.') ?></td>
+                            <td class="text-center fw-bold bg-primary bg-opacity-10"><?= number_format((float)$totais['visitantes'], 0, ',', '.') ?></td>
+                            <td class="text-end fw-bold bg-success bg-opacity-10 text-success"><?= RelatorioController::formatarMoeda($totais['oferta']) ?></td>
                         </tr>
                     </tfoot>
                     <?php endif; ?>
@@ -319,26 +317,93 @@ foreach ($dados as $linha) {
         </div>
     </div>
 
+    <!-- Cards Mobile (Lista de Classes) -->
+    <div class="d-md-none" data-aos="fade-up" data-aos-delay="350">
+        <?php if (!empty($dados)): ?>
+            <?php foreach ($dados as $linha): ?>
+                <div class="modern-card mb-3">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="fas fa-chalkboard-user me-2" style="color: var(--success);"></i>
+                                    <?= htmlspecialchars($linha['classe']) ?>
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-church me-1"></i> <?= htmlspecialchars($linha['congregacao']) ?>
+                                </small>
+                            </div>
+                            <span class="badge-trimestre"><?= htmlspecialchars($linha['trimestre']) ?></span>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-4 text-center">
+                                <div class="p-1">
+                                    <div class="fw-bold text-primary"><?= number_format((float)$linha['matriculados'], 0, ',', '.') ?></div>
+                                    <small class="text-muted">Matr.</small>
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div class="p-1">
+                                    <div class="fw-bold text-success"><?= number_format((float)$linha['presentes'], 0, ',', '.') ?></div>
+                                    <small class="text-muted">Pres.</small>
+                                </div>
+                            </div>
+                            <div class="col-4 text-center">
+                                <div class="p-1">
+                                    <div class="fw-bold text-danger"><?= number_format((float)$linha['ausentes'], 0, ',', '.') ?></div>
+                                    <small class="text-muted">Faltas</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <div class="d-flex justify-content-between small">
+                                    <span><i class="fas fa-book"></i> Bíblias:</span>
+                                    <span class="fw-bold"><?= number_format((float)$linha['biblias'], 0, ',', '.') ?></span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex justify-content-between small">
+                                    <span><i class="fas fa-magazine"></i> Revistas:</span>
+                                    <span class="fw-bold"><?= number_format((float)$linha['revistas'], 0, ',', '.') ?></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <div class="d-flex justify-content-between small">
+                                <span><i class="fas fa-user-plus"></i> Visitantes:</span>
+                                <span class="fw-bold"><?= number_format((float)$linha['visitantes'], 0, ',', '.') ?></span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2 pt-2 border-top">
+                            <div class="d-flex justify-content-between">
+                                <span><i class="fas fa-dollar-sign text-success"></i> Ofertas:</span>
+                                <span class="fw-bold text-success"><?= RelatorioController::formatarMoeda($linha['oferta']) ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
     <!-- Dica de Análise -->
-    <div class="alert-ebd alert-info-ebd mt-4" data-aos="fade-up" data-aos-delay="350">
+    <div class="alert-ebd alert-info-ebd mt-4" data-aos="fade-up" data-aos-delay="400">
         <div class="d-flex align-items-center gap-3 flex-wrap">
             <i class="fas fa-chart-line fa-2x" style="color: var(--info);"></i>
             <div class="flex-grow-1">
                 <strong class="d-block mb-1">Análise de Dados:</strong>
-                <span>Este relatório consolida todas as informações por trimestre. Utilize os filtros para focar em períodos específicos e acompanhe o crescimento das classes.</span>
+                <span>Este relatório consolida todas as informações por trimestre ou período. Utilize os filtros para focar em períodos específicos e acompanhe o crescimento das classes.</span>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-/* Estilos específicos para o relatório consolidado */
-.breadcrumb-item + .breadcrumb-item::before {
-    content: "›";
-    color: var(--gray-500);
-}
-
-/* Badge de trimestre */
 .badge-trimestre {
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
     color: white;
@@ -349,7 +414,6 @@ foreach ($dados as $linha) {
     display: inline-block;
 }
 
-/* Rodapé da tabela */
 .table-footer {
     background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
     font-weight: 600;
@@ -360,7 +424,6 @@ foreach ($dados as $linha) {
     padding: 1rem;
 }
 
-/* Alertas personalizados */
 .alert-info-ebd {
     background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
     border-left: 4px solid var(--info);
@@ -368,148 +431,67 @@ foreach ($dados as $linha) {
     padding: 1rem 1.25rem;
 }
 
-/* DataTables personalizado */
-.dataTables_wrapper .dataTables_filter input {
+.btn-modern {
+    padding: 0.5rem 1rem;
     border-radius: 10px;
-    border: 1.5px solid var(--gray-200);
-    padding: 0.5rem 0.75rem;
-    margin-left: 0.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
 }
 
-.dataTables_wrapper .dataTables_filter input:focus {
-    border-color: var(--primary-500);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+.btn-modern:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
 }
 
-.dataTables_wrapper .dataTables_length select {
-    border-radius: 10px;
-    border: 1.5px solid var(--gray-200);
-    padding: 0.25rem 0.5rem;
+.btn-modern-primary {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    color: white;
 }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background: var(--gradient-primary) !important;
-    border: none !important;
-    color: white !important;
+.btn-modern-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
 }
 
-/* Print styles */
 @media print {
-    .navbar, .breadcrumb, .btn-modern, .alert-ebd, .dataTables_wrapper .dataTables_filter,
-    .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_paginate,
-    .card-header-modern .d-flex .btn {
+    .navbar, .breadcrumb, .btn-modern, .alert-ebd, .dt-buttons, .d-md-none {
         display: none !important;
+    }
+    
+    .d-none.d-md-block {
+        display: block !important;
     }
     
     body {
         padding: 0;
         margin: 0;
     }
-    
-    .modern-card {
-        box-shadow: none;
-        border: 1px solid #ddd;
-    }
-    
-    .stat-card {
-        box-shadow: none;
-        border: 1px solid #ddd;
-    }
-    
-    .card-header-modern {
-        background: #2c3e50 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-    .display-5 {
-        font-size: 1.5rem;
-    }
-    
-    .stat-card .stat-value {
-        font-size: 1.25rem;
-    }
-    
-    .table-footer td {
-        font-size: 0.8rem;
-    }
 }
 </style>
 
 <script>
+function exportarCSV() {
+    const formData = new FormData(document.getElementById('formFiltros'));
+    const params = new URLSearchParams(formData).toString();
+    window.location.href = 'exportar_relatorio.php?tipo=consolidado&' + params;
+}
+
 $(document).ready(function() {
     <?php if (!empty($dados)): ?>
-    // Inicializar DataTable
-    var table = $('#tabelaConsolidada').DataTable({
+    $('#tabelaConsolidada').DataTable({
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
         },
-        dom: 'Bfrtip',
-        buttons: [
-            {
-                extend: 'excelHtml5',
-                text: '<i class="fas fa-file-excel me-1"></i> Excel',
-                className: 'btn-excel',
-                title: 'Relatorio_Consolidado',
-                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] }
-            },
-            {
-                extend: 'csvHtml5',
-                text: '<i class="fas fa-file-csv me-1"></i> CSV',
-                className: 'btn-csv',
-                title: 'Relatorio_Consolidado',
-                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] }
-            },
-            {
-                extend: 'pdfHtml5',
-                text: '<i class="fas fa-file-pdf me-1"></i> PDF',
-                className: 'btn-pdf',
-                title: 'Relatorio_Consolidado',
-                orientation: 'landscape',
-                pageSize: 'A4',
-                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] },
-                customize: function(doc) {
-                    doc.styles.tableHeader = {
-                        bold: true,
-                        fontSize: 10,
-                        color: 'white',
-                        fillColor: '#3b82f6',
-                        alignment: 'center'
-                    };
-                    doc.defaultStyle.fontSize = 9;
-                }
-            },
-            {
-                extend: 'print',
-                text: '<i class="fas fa-print me-1"></i> Imprimir',
-                className: 'btn-print',
-                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9,10] }
-            }
-        ],
         order: [[0, 'asc'], [1, 'asc']],
         pageLength: 10,
-        lengthMenu: [5, 10, 25, 50, 100],
         responsive: true,
         drawCallback: function() {
             $('.dataTables_paginate').addClass('mt-3');
         }
     });
-    
-    // Estilizar os botões do DataTable
-    $('.dt-buttons').addClass('d-flex gap-2 mb-3');
-    $('.buttons-excel').addClass('btn-modern').css({'background': '#27ae60', 'color': 'white', 'border': 'none'});
-    $('.buttons-csv').addClass('btn-modern').css({'background': '#3498db', 'color': 'white', 'border': 'none'});
-    $('.buttons-pdf').addClass('btn-modern').css({'background': '#e74c3c', 'color': 'white', 'border': 'none'});
-    $('.buttons-print').addClass('btn-modern').css({'background': '#7f8c8d', 'color': 'white', 'border': 'none'});
-    
-    // Mover botões para o local desejado
-    $('.dt-buttons').appendTo('.card-header-modern .d-flex');
     <?php endif; ?>
     
-    // Inicializar AOS
     if (typeof AOS !== 'undefined') {
         AOS.init({
             duration: 600,
@@ -520,7 +502,4 @@ $(document).ready(function() {
 });
 </script>
 
-<?php
-// Incluir footer
-require_once __DIR__ . '/../includes/footer.php';
-?>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - Cabeçalho do Sistema com tema padronizado
+// includes/header.php - Cabeçalho do Sistema com tema atualizado
 
 // Garantir que as constantes estão definidas
 if (!defined('BASE_URL')) {
@@ -15,16 +15,19 @@ if (!isset($_SESSION['usuario_id'])) {
 // Obter informações do usuário logado
 $usuario_nome    = $_SESSION['usuario_nome']   ?? $_SESSION['nome']   ?? 'Usuário';
 $usuario_perfil  = $_SESSION['usuario_perfil'] ?? $_SESSION['perfil'] ?? 'user';
+$usuario_email   = $_SESSION['usuario_email']  ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="description" content="Sistema de Gestão da Escola Bíblica Dominical">
     <title>Sistema E.B.D - <?= htmlspecialchars($titulo_pagina ?? $pageTitle ?? 'Dashboard') ?></title>
 
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5.3.3 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -53,10 +56,37 @@ $usuario_perfil  = $_SESSION['usuario_perfil'] ?? $_SESSION['perfil'] ?? 'user';
     <?php endif; ?>
 
     <style>
-        /* Ajustes adicionais de padding */
-        body { padding-top: 76px; }
-        
-        /* Custom scrollbar */
+        /* ============================================
+           ESTILOS GLOBAIS
+           ============================================ */
+        :root {
+            --primary-50: #eef2ff;
+            --primary-100: #e0e7ff;
+            --primary-200: #c7d2fe;
+            --primary-300: #a5b4fc;
+            --primary-400: #818cf8;
+            --primary-500: #6366f1;
+            --primary-600: #4f46e5;
+            --primary-700: #4338ca;
+            --primary-800: #3730a3;
+            --primary-900: #312e81;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            min-height: 100vh;
+            padding-top: 72px;
+            color: #1e293b;
+        }
+
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -64,27 +94,45 @@ $usuario_perfil  = $_SESSION['usuario_perfil'] ?? $_SESSION['perfil'] ?? 'user';
         
         ::-webkit-scrollbar-track {
             background: var(--gray-100);
-            border-radius: 4px;
+            border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb {
             background: var(--primary-400);
-            border-radius: 4px;
+            border-radius: 10px;
         }
         
         ::-webkit-scrollbar-thumb:hover {
             background: var(--primary-600);
         }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            body {
+                padding-top: 60px;
+            }
+        }
+
+        /* Print */
+        @media print {
+            body {
+                padding-top: 0;
+                background: white;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Navbar com classe personalizada -->
+    <!-- Navbar -->
     <?php require_once __DIR__ . '/navbar.php'; ?>
 
-    <!-- Início do conteúdo principal -->
-    <main class="container-fluid py-4">
+    <!-- Main Content Container -->
+    <main class="container-fluid px-3 px-md-4 py-3 py-md-4">
     
-    <!-- Scripts necessários -->
+    <!-- Scripts Core -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/2.2.2/js/dataTables.js"></script>
     <script src="https://cdn.datatables.net/2.2.2/js/dataTables.bootstrap5.js"></script>
@@ -93,9 +141,10 @@ $usuario_perfil  = $_SESSION['usuario_perfil'] ?? $_SESSION['perfil'] ?? 'user';
     <script>
         // Inicializar AOS
         AOS.init({
-            duration: 800,
+            duration: 600,
             once: true,
-            offset: 50
+            offset: 50,
+            easing: 'ease-in-out'
         });
         
         // Função global para inicializar DataTables

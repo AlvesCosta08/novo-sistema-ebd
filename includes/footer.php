@@ -2,68 +2,60 @@
 // includes/footer.php - Rodapé do Sistema
 ?>
 
-    </main><!-- /.container-fluid.py-3 aberto no header -->
+    </main><!-- /.main-content -->
 
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/2.2.2/js/dataTables.js"></script>
-    <script src="https://cdn.datatables.net/2.2.2/js/dataTables.bootstrap5.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-
-    <script>
-        AOS.init({ duration: 800, once: true });
-
-        // Tooltips Bootstrap
-        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
-            new bootstrap.Tooltip(el);
-        });
-
-        // Destacar link ativo no menu
-        (function() {
-            const path = window.location.pathname;
-            document.querySelectorAll('.nav-link, .dropdown-item').forEach(function(link) {
-                const href = link.getAttribute('href');
-                if (href && href !== '#' && path.endsWith(href.split('/').pop())) {
-                    link.classList.add('active');
-                }
-            });
-        })();
-
-        // Prevenir duplo envio de formulários
-        document.querySelectorAll('form').forEach(function(form) {
-            let submitted = false;
-            form.addEventListener('submit', function(e) {
-                if (submitted) { e.preventDefault(); return false; }
-                submitted = true;
-                const btn = form.querySelector('button[type="submit"], input[type="submit"]');
-                if (btn) {
-                    const orig = btn.innerHTML;
-                    btn.disabled = true;
-                    if (btn.tagName === 'BUTTON') {
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processando...';
-                    }
-                    setTimeout(function() {
-                        btn.disabled = false;
-                        btn.innerHTML = orig;
-                        submitted = false;
-                    }, 30000);
-                }
-            });
-        });
-    </script>
-
-    <?php if (isset($pageSpecificScripts)) echo $pageSpecificScripts; ?>
-
-    <!-- Rodapé HTML -->
-    <footer class="bg-white border-top py-3 mt-4">
-        <div class="container text-center text-muted small">
-            <i class="fas fa-church me-1"></i>
-            &copy; <?= date('Y') ?> Escola Bíblica Dominical — Todos os direitos reservados
-            <span class="mx-2">|</span>
-            <i class="fas fa-code-branch me-1"></i> v3.0
+    <footer class="footer mt-auto py-3 no-print" style="background: white; border-top: 1px solid #e2e8f0;">
+        <div class="container-fluid px-3 px-md-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                <div class="text-muted small">
+                    <i class="fas fa-church me-1 text-primary"></i>
+                    &copy; <?= date('Y') ?> EBD System — Todos os direitos reservados
+                </div>
+                <div class="d-flex gap-3">
+                    <a href="#" class="text-muted small text-decoration-none" data-bs-toggle="modal" data-bs-target="#aboutModal">
+                        <i class="fas fa-info-circle me-1"></i> Sobre
+                    </a>
+                    <span class="text-muted small">|</span>
+                    <span class="text-muted small">
+                        <i class="fas fa-code-branch me-1"></i> v3.0
+                    </span>
+                </div>
+            </div>
         </div>
     </footer>
+
+    <!-- Modal Sobre -->
+    <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);">
+                    <h5 class="modal-title text-white" id="aboutModalLabel">
+                        <i class="fas fa-church me-2"></i>Sobre o EBD System
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div class="brand-icon-wrapper rounded-circle d-flex align-items-center justify-content-center mx-auto" style="width: 70px; height: 70px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);">
+                            <img src="<?= BASE_URL ?>/assets/images/biblia.png" alt="Logo" style="width: 40px; height: 40px; filter: brightness(0) invert(1);">
+                        </div>
+                    </div>
+                    <p class="text-center fw-bold mb-1">Escola Bíblica Dominical</p>
+                    <p class="text-center text-muted small mb-3">Sistema de Gestão</p>
+                    <hr>
+                    <p class="small">
+                        <strong>Versão:</strong> 3.0<br>
+                        <strong>Desenvolvido para:</strong> Gestão completa da EBD<br>
+                        <strong>Funcionalidades:</strong> Matrículas, Chamadas, Relatórios, Financeiro<br>
+                        <strong>Tecnologias:</strong> PHP, MySQL, Bootstrap 5, jQuery, DataTables
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>

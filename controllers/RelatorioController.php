@@ -13,64 +13,122 @@ class RelatorioController {
     }
     
     /**
-     * Relatório Consolidado de Classes
-     * Retorna dados agregados por classe: matrículas, presenças, recursos e ofertas
+     * Relatório Consolidado de Classes - VERSÃO DEFINITIVA
+     * Busca matrículas/presenças e recursos separadamente para evitar duplicação
      */
-/**
- * Relatório Consolidado de Classes
- * Suporte a filtros: trimestre, congregacao, data_inicio, data_fim
- */
-public function getRelatorioConsolidado($trimestre = null, $congregacao = null, $data_inicio = null, $data_fim = null) {
-    $sql = "SELECT 
-                cg.nome AS congregacao,
-                cl.nome AS classe,
-                m.trimestre,
-                COUNT(DISTINCT m.aluno_id) AS matriculados,
-                COUNT(DISTINCT CASE WHEN p.presente = 'presente' THEN p.aluno_id END) AS presentes,
-                COUNT(DISTINCT CASE WHEN p.presente = 'ausente' THEN p.aluno_id END) AS ausentes,
-                COUNT(DISTINCT CASE WHEN p.presente = 'justificado' THEN p.aluno_id END) AS justificados,
-                COALESCE(SUM(ch.total_biblias), 0) AS biblias,
-                COALESCE(SUM(ch.total_revistas), 0) AS revistas,
-                COALESCE(SUM(ch.total_visitantes), 0) AS visitantes,
-                COALESCE(SUM(ch.oferta_classe), 0) AS oferta
-            FROM classes cl
-            INNER JOIN matriculas m ON m.classe_id = cl.id AND m.status = 'ativo'
-            INNER JOIN congregacoes cg ON cg.id = m.congregacao_id
-            LEFT JOIN chamadas ch ON ch.classe_id = cl.id
-            LEFT JOIN presencas p ON p.chamada_id = ch.id AND p.aluno_id = m.aluno_id
-            WHERE 1=1";
-    
-    $params = [];
-    
-    if (!empty($trimestre)) {
-        $sql .= " AND m.trimestre = :trimestre";
-        $params[':trimestre'] = $trimestre;
+    public function getRelatorioConsolidado($trimestre = null, $congregacao = null, $data_inicio = null, $data_fim = null) {
+        
+        // ===========================================
+        // 1. BUSCAR MATRÍCULAS E PRESENÇAS
+        // ===========================================
+        $sqlMatriculas = "SELECT 
+                            cg.nome AS congregacao,
+                            cl.nome AS classe,
+                            m.trimestre,
+                            COUNT(DISTINCT m.aluno_id) AS matriculados,
+                            COUNT(DISTINCT CASE WHEN p.presente = 'presente' THEN p.aluno_id END) AS presentes,
+                            COUNT(DISTINCT CASE WHEN p.presente = 'ausente' THEN p.aluno_id END) AS ausentes,
+                            COUNT(DISTINCT CASE WHEN p.presente = 'justificado' THEN p.aluno_id END) AS justificados
+                        FROM classes cl
+                        INNER JOIN matriculas m ON m.classe_id = cl.id AND m.status = 'ativo'
+                        INNER JOIN congregacoes cg ON cg.id = m.congregacao_id
+                        LEFT JOIN chamadas ch ON ch.classe_id = cl.id
+                        LEFT JOIN presencas p ON p.chamada_id = ch.id AND p.aluno_id = m.aluno_id
+                        WHERE 1=1";
+        
+        $params = [];
+        
+        if (!empty($trimestre)) {
+            $sqlMatriculas .= " AND m.trimestre = :trimestre";
+            $params[':trimestre'] = $trimestre;
+        }
+        
+        if (!empty($congregacao)) {
+            $sqlMatriculas .= " AND cg.nome LIKE :congregacao";
+            $params[':congregacao'] = '%' . $congregacao . '%';
+        }
+        
+        if (!empty($data_inicio) && !empty($data_fim)) {
+            $sqlMatriculas .= " AND ch.data BETWEEN :data_inicio AND :data_fim";
+            $params[':data_inicio'] = $data_inicio;
+            $params[':data_fim'] = $data_fim;
+        }
+        
+        $sqlMatriculas .= " GROUP BY cg.nome, cl.nome, m.trimestre ORDER BY cg.nome, cl.nome";
+        
+        $stmt = $this->pdo->prepare($sqlMatriculas);
+        $stmt->execute($params);
+        $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // ===========================================
+        // 2. BUSCAR RECURSOS (Bíblias, Revistas, Visitantes, Ofertas)
+        //    Consulta SEPARADA para evitar duplicação
+        // ===========================================
+        $sqlRecursos = "SELECT 
+                            c.nome AS classe,
+                            COALESCE(SUM(ch.total_biblias), 0) AS biblias,
+                            COALESCE(SUM(ch.total_revistas), 0) AS revistas,
+                            COALESCE(SUM(ch.total_visitantes), 0) AS visitantes,
+                            COALESCE(SUM(ch.oferta_classe), 0) AS oferta
+                        FROM chamadas ch
+                        INNER JOIN classes c ON c.id = ch.classe_id
+                        WHERE 1=1";
+        
+        $paramsRecursos = [];
+        
+        if (!empty($trimestre)) {
+            $sqlRecursos .= " AND ch.trimestre = :trimestre";
+            $paramsRecursos[':trimestre'] = $trimestre;
+        }
+        
+        if (!empty($data_inicio) && !empty($data_fim)) {
+            $sqlRecursos .= " AND ch.data BETWEEN :data_inicio AND :data_fim";
+            $paramsRecursos[':data_inicio'] = $data_inicio;
+            $paramsRecursos[':data_fim'] = $data_fim;
+        }
+        
+        $sqlRecursos .= " GROUP BY c.nome ORDER BY c.nome";
+        
+        $stmtRecursos = $this->pdo->prepare($sqlRecursos);
+        $stmtRecursos->execute($paramsRecursos);
+        
+        // Criar array de recursos por classe para fácil acesso
+        $recursosPorClasse = [];
+        foreach ($stmtRecursos->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $recursosPorClasse[$row['classe']] = [
+                'biblias' => (int)$row['biblias'],
+                'revistas' => (int)$row['revistas'],
+                'visitantes' => (int)$row['visitantes'],
+                'oferta' => (float)$row['oferta']
+            ];
+        }
+        
+        // ===========================================
+        // 3. MESCLAR OS RESULTADOS
+        // ===========================================
+        foreach ($resultados as $key => $row) {
+            $classe = $row['classe'];
+            
+            if (isset($recursosPorClasse[$classe])) {
+                $resultados[$key]['biblias'] = $recursosPorClasse[$classe]['biblias'];
+                $resultados[$key]['revistas'] = $recursosPorClasse[$classe]['revistas'];
+                $resultados[$key]['visitantes'] = $recursosPorClasse[$classe]['visitantes'];
+                $resultados[$key]['oferta'] = $recursosPorClasse[$classe]['oferta'];
+            } else {
+                $resultados[$key]['biblias'] = 0;
+                $resultados[$key]['revistas'] = 0;
+                $resultados[$key]['visitantes'] = 0;
+                $resultados[$key]['oferta'] = 0;
+            }
+        }
+        
+        return $resultados;
     }
-    
-    if (!empty($congregacao)) {
-        $sql .= " AND cg.nome LIKE :congregacao";
-        $params[':congregacao'] = '%' . $congregacao . '%';
-    }
-    
-    if (!empty($data_inicio) && !empty($data_fim)) {
-        $sql .= " AND ch.data BETWEEN :data_inicio AND :data_fim";
-        $params[':data_inicio'] = $data_inicio;
-        $params[':data_fim'] = $data_fim;
-    }
-    
-    $sql .= " GROUP BY cg.nome, cl.nome, m.trimestre ORDER BY cg.nome, cl.nome";
-    
-    $stmt = $this->pdo->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
     
     /**
      * Relatório de Presenças por Aluno
-     * Retorna análise individual de frequência por período
      */
     public function getPresencasPorAluno($congregacao_id = null, $classe_id = null, $data_inicio = null, $data_fim = null, $trimestre = null) {
-        // Definir período
         if (!empty($trimestre)) {
             list($data_inicio, $data_fim) = $this->calcularPeriodoTrimestre($trimestre);
         } else {
@@ -78,53 +136,25 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
             $data_fim = $data_fim ?: date('Y-m-d');
         }
         
-        // Verificar se há chamadas no período
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) AS total FROM chamadas WHERE data BETWEEN ? AND ?");
-        $stmt->execute([$data_inicio, $data_fim]);
-        $result = $stmt->fetch();
-        
-        if ($result['total'] == 0) {
-            return [
-                'dados' => [], 
-                'trimestre_sem_dados' => true, 
-                'data_inicio' => $data_inicio, 
-                'data_fim' => $data_fim,
-                'top_presencas' => [],
-                'top_faltas' => []
-            ];
-        }
-        
         $sql = "SELECT 
                     a.id,
                     a.nome AS aluno,
                     c.nome AS classe,
                     cg.nome AS congregacao,
-                    COALESCE(total_chamadas.total_aulas, 0) AS total_aulas,
-                    COALESCE(presencas_aluno.total_presencas, 0) AS presencas,
-                    (COALESCE(total_chamadas.total_aulas, 0) - COALESCE(presencas_aluno.total_presencas, 0)) AS faltas,
+                    COUNT(DISTINCT ch.id) AS total_aulas,
+                    COUNT(DISTINCT CASE WHEN p.presente = 'presente' THEN p.id END) AS presencas,
+                    COUNT(DISTINCT ch.id) - COUNT(DISTINCT CASE WHEN p.presente = 'presente' THEN p.id END) AS faltas,
                     CASE 
-                        WHEN COALESCE(total_chamadas.total_aulas, 0) > 0 THEN
-                            ROUND((COALESCE(presencas_aluno.total_presencas, 0) * 100.0) / total_chamadas.total_aulas, 1)
+                        WHEN COUNT(DISTINCT ch.id) > 0 THEN
+                            ROUND((COUNT(DISTINCT CASE WHEN p.presente = 'presente' THEN p.id END) * 100.0) / COUNT(DISTINCT ch.id), 1)
                         ELSE 0
                     END AS frequencia
                 FROM alunos a
                 INNER JOIN matriculas m ON m.aluno_id = a.id AND m.status = 'ativo'
                 INNER JOIN classes c ON c.id = m.classe_id
                 INNER JOIN congregacoes cg ON cg.id = m.congregacao_id
-                LEFT JOIN (
-                    SELECT ch.classe_id, COUNT(*) AS total_aulas
-                    FROM chamadas ch
-                    WHERE ch.data BETWEEN :inicio AND :fim
-                    GROUP BY ch.classe_id
-                ) total_chamadas ON total_chamadas.classe_id = c.id
-                LEFT JOIN (
-                    SELECT p.aluno_id, COUNT(*) AS total_presencas
-                    FROM presencas p
-                    INNER JOIN chamadas ch ON ch.id = p.chamada_id
-                    WHERE ch.data BETWEEN :inicio AND :fim
-                    AND p.presente = 'presente'
-                    GROUP BY p.aluno_id
-                ) presencas_aluno ON presencas_aluno.aluno_id = a.id
+                LEFT JOIN chamadas ch ON ch.classe_id = c.id AND ch.data BETWEEN :inicio AND :fim
+                LEFT JOIN presencas p ON p.chamada_id = ch.id AND p.aluno_id = a.id
                 WHERE 1=1";
         
         $params = [':inicio' => $data_inicio, ':fim' => $data_fim];
@@ -139,7 +169,7 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
             $params[':classe'] = $classe_id;
         }
         
-        $sql .= " ORDER BY frequencia DESC";
+        $sql .= " GROUP BY a.id, a.nome, c.nome, cg.nome ORDER BY frequencia DESC";
         
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
@@ -147,7 +177,7 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
         
         return [
             'dados' => $dados,
-            'trimestre_sem_dados' => false,
+            'trimestre_sem_dados' => empty($dados),
             'data_inicio' => $data_inicio,
             'data_fim' => $data_fim,
             'top_presencas' => array_slice($dados, 0, 5),
@@ -157,53 +187,30 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
     
     /**
      * Relatório de Frequência de Alunos (Resumo)
-     * Usa view resumo_presenca ou consulta direta
      */
     public function getFrequenciaAlunos() {
-        try {
-            // Tenta usar a view primeiro
-            $query = "SELECT 
-                        a.id AS aluno_id,
-                        a.nome AS aluno_nome,
-                        COALESCE(SUM(CASE WHEN p.presente = 'presente' THEN 1 ELSE 0 END), 0) AS total_presentes,
-                        COALESCE(SUM(CASE WHEN p.presente = 'ausente' THEN 1 ELSE 0 END), 0) AS total_ausentes,
-                        c.nome AS classe_nome,
-                        cg.nome AS congregacao_nome,
-                        m.trimestre
-                      FROM alunos a
-                      INNER JOIN matriculas m ON m.aluno_id = a.id AND m.status = 'ativo'
-                      INNER JOIN classes c ON c.id = m.classe_id
-                      INNER JOIN congregacoes cg ON cg.id = m.congregacao_id
-                      LEFT JOIN chamadas ch ON ch.classe_id = c.id
-                      LEFT JOIN presencas p ON p.chamada_id = ch.id AND p.aluno_id = a.id
-                      GROUP BY a.id, a.nome, c.nome, cg.nome, m.trimestre
-                      ORDER BY a.nome";
-            $stmt = $this->pdo->query($query);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            // Fallback: consulta simplificada
-            $query = "SELECT 
-                        a.id AS aluno_id,
-                        a.nome AS aluno_nome,
-                        0 AS total_presentes,
-                        0 AS total_ausentes,
-                        c.nome AS classe_nome,
-                        cg.nome AS congregacao_nome,
-                        m.trimestre
-                      FROM alunos a
-                      INNER JOIN matriculas m ON m.aluno_id = a.id AND m.status = 'ativo'
-                      INNER JOIN classes c ON c.id = m.classe_id
-                      INNER JOIN congregacoes cg ON cg.id = m.congregacao_id
-                      GROUP BY a.id, a.nome, c.nome, cg.nome, m.trimestre
-                      ORDER BY a.nome";
-            $stmt = $this->pdo->query($query);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
+        $query = "SELECT 
+                    a.id AS aluno_id,
+                    a.nome AS aluno_nome,
+                    COALESCE(SUM(CASE WHEN p.presente = 'presente' THEN 1 ELSE 0 END), 0) AS total_presentes,
+                    COALESCE(SUM(CASE WHEN p.presente = 'ausente' THEN 1 ELSE 0 END), 0) AS total_ausentes,
+                    c.nome AS classe_nome,
+                    cg.nome AS congregacao_nome,
+                    m.trimestre
+                  FROM alunos a
+                  INNER JOIN matriculas m ON m.aluno_id = a.id AND m.status = 'ativo'
+                  INNER JOIN classes c ON c.id = m.classe_id
+                  INNER JOIN congregacoes cg ON cg.id = m.congregacao_id
+                  LEFT JOIN chamadas ch ON ch.classe_id = c.id
+                  LEFT JOIN presencas p ON p.chamada_id = ch.id AND p.aluno_id = a.id
+                  GROUP BY a.id, a.nome, c.nome, cg.nome, m.trimestre
+                  ORDER BY a.nome";
+        $stmt = $this->pdo->query($query);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     /**
      * Relatório de Aniversariantes
-     * Retorna alunos aniversariantes do mês selecionado
      */
     public function getAniversariantes($mes = null, $classe_id = null) {
         $mes = $mes ?: date('m');
@@ -238,7 +245,6 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
     
     /**
      * Relatório Geral de Presenças
-     * Visão completa por classe com todos os indicadores
      */
     public function getRelatorioGeral($data_inicio = null, $data_fim = null, $congregacao_id = null, $trimestre = null) {
         $data_inicio = $data_inicio ?: date('Y-m-01');
@@ -250,12 +256,12 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
                     cg.nome AS congregacao_nome,
                     m.trimestre,
                     COUNT(DISTINCT m.aluno_id) AS total_matriculados,
-                    COALESCE(pres.total_presencas, 0) AS total_presencas,
-                    COALESCE(pres.total_faltas, 0) AS total_faltas,
                     COALESCE(cham.total_visitantes, 0) AS total_visitantes,
                     COALESCE(cham.total_biblias, 0) AS total_biblias,
                     COALESCE(cham.total_revistas, 0) AS total_revistas,
-                    COALESCE(cham.total_ofertas, 0) AS total_ofertas
+                    COALESCE(cham.total_ofertas, 0) AS total_ofertas,
+                    0 AS total_presencas,
+                    0 AS total_faltas
                 FROM classes c
                 LEFT JOIN matriculas m ON m.classe_id = c.id AND m.status = 'ativo'
                 LEFT JOIN congregacoes cg ON cg.id = m.congregacao_id
@@ -270,24 +276,12 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
                     WHERE ch.data BETWEEN :data_inicio AND :data_fim
                     GROUP BY ch.classe_id
                 ) cham ON cham.classe_id = c.id
-                LEFT JOIN (
-                    SELECT 
-                        m.classe_id,
-                        m.trimestre,
-                        SUM(CASE WHEN p.presente = 'presente' THEN 1 ELSE 0 END) AS total_presencas,
-                        SUM(CASE WHEN p.presente = 'ausente' THEN 1 ELSE 0 END) AS total_faltas
-                    FROM matriculas m
-                    INNER JOIN chamadas ch ON ch.classe_id = m.classe_id AND ch.data BETWEEN :data_inicio AND :data_fim
-                    INNER JOIN presencas p ON p.chamada_id = ch.id AND p.aluno_id = m.aluno_id
-                    WHERE m.status = 'ativo'
-                    GROUP BY m.classe_id, m.trimestre
-                ) pres ON pres.classe_id = c.id AND pres.trimestre = m.trimestre
                 WHERE 1=1";
         
         $params = [':data_inicio' => $data_inicio, ':data_fim' => $data_fim];
         
         if (!empty($congregacao_id)) {
-            $sql .= " AND m.congregacao_id = :congregacao_id";
+            $sql .= " AND cg.id = :congregacao_id";
             $params[':congregacao_id'] = $congregacao_id;
         }
         
@@ -363,11 +357,9 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
      * Salvar presenças de uma chamada
      */
     public function salvarPresencas($chamada_id, $presencas) {
-        // Remove presenças antigas
         $stmt = $this->pdo->prepare("DELETE FROM presencas WHERE chamada_id = :chamada_id");
         $stmt->execute([':chamada_id' => $chamada_id]);
         
-        // Insere novas presenças
         $sql = "INSERT INTO presencas (chamada_id, aluno_id, presente) VALUES (:chamada_id, :aluno_id, :presente)";
         $stmt = $this->pdo->prepare($sql);
         
@@ -404,7 +396,6 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
      * Calcular período do trimestre
      */
     private function calcularPeriodoTrimestre($trimestre) {
-        // Formato esperado: 2025-T2 ou apenas o número 2
         if (strpos($trimestre, '-') !== false) {
             list($ano, $t) = explode('-', $trimestre);
             $trimestre_num = (int)str_replace('T', '', $t);
@@ -437,13 +428,13 @@ public function getRelatorioConsolidado($trimestre = null, $congregacao = null, 
         ];
         
         foreach ($dados as $linha) {
-            $totais['matriculados'] += (float)($linha['matriculados'] ?? 0);
-            $totais['presentes'] += (float)($linha['presentes'] ?? 0);
-            $totais['ausentes'] += (float)($linha['ausentes'] ?? 0);
-            $totais['justificados'] += (float)($linha['justificados'] ?? 0);
-            $totais['biblias'] += (float)($linha['biblias'] ?? 0);
-            $totais['revistas'] += (float)($linha['revistas'] ?? 0);
-            $totais['visitantes'] += (float)($linha['visitantes'] ?? 0);
+            $totais['matriculados'] += (int)($linha['matriculados'] ?? 0);
+            $totais['presentes'] += (int)($linha['presentes'] ?? 0);
+            $totais['ausentes'] += (int)($linha['ausentes'] ?? 0);
+            $totais['justificados'] += (int)($linha['justificados'] ?? 0);
+            $totais['biblias'] += (int)($linha['biblias'] ?? 0);
+            $totais['revistas'] += (int)($linha['revistas'] ?? 0);
+            $totais['visitantes'] += (int)($linha['visitantes'] ?? 0);
             $totais['oferta'] += (float)($linha['oferta'] ?? 0);
         }
         
